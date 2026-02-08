@@ -380,10 +380,11 @@ const createTitleTextBuffer = async (
   const fontSize = getTitleFontSize(width, height, normalizedTitle);
   const strokeWidth = Math.max(1, Math.round(fontSize * 0.1));
   const escapedText = escapeXml(normalizedTitle);
+  const yCenter = height / 2;
   const svg = [
     `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">`,
     "<rect width=\"100%\" height=\"100%\" fill=\"transparent\"/>",
-    `<text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle" fill="#1f1610" stroke="#efe8d8" stroke-width="${strokeWidth}" paint-order="stroke fill" font-size="${fontSize}" font-family="'Times New Roman', Georgia, serif" font-weight="700" letter-spacing="0.6">${escapedText}</text>`,
+    `<text x="0" y="${yCenter}" dy="0.35em" text-anchor="start" fill="#1f1610" stroke="#efe8d8" stroke-width="${strokeWidth}" paint-order="stroke fill" font-size="${fontSize}" font-family="'Times New Roman', Georgia, serif" font-weight="700" letter-spacing="0.6">${escapedText}</text>`,
     "</svg>",
   ].join("");
 
