@@ -372,7 +372,7 @@ const createTitleTextBuffer = async (
   width: number,
   height: number,
 ): Promise<Buffer> => {
-  const normalizedTitle = themedName.trim().toUpperCase();
+  const normalizedTitle = themedName.trim();
   if (normalizedTitle.length === 0) {
     throw new Error("Themed card title is required.");
   }
