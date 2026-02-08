@@ -147,11 +147,23 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
 
   return (
     <section className="space-y-4">
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 md:p-6">
-        <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-xl font-semibold text-slate-900">{deck.title}</h2>
-            <p className="text-sm text-slate-600">Total cards: {cardCount}</p>
+            <h3 className="text-lg font-semibold text-slate-900">Deck Theme</h3>
+            <p className="mt-1 text-sm text-slate-600 capitalize">Status: {deck.themingStatus}</p>
+            {deck.themingThemeUniverse ? (
+              <p className="mt-2 text-sm text-slate-700">
+                <span className="font-medium text-slate-900">Universe:</span> {deck.themingThemeUniverse}
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-slate-500">No theme applied yet.</p>
+            )}
+            {deck.themingArtStyleBrief ? (
+              <p className="mt-1 text-sm text-slate-700">
+                <span className="font-medium text-slate-900">Art style:</span> {deck.themingArtStyleBrief}
+              </p>
+            ) : null}
           </div>
           <button
             className="inline-flex cursor-pointer items-center rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
@@ -165,6 +177,27 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
           >
             {deck.themingStatus === "completed" ? "Re-theme Deck" : "Theme Deck"}
           </button>
+        </div>
+
+        {deck.themingStatus === "running" ? (
+          <div className="mt-4 rounded-lg border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900">
+            Generating themed deck...
+          </div>
+        ) : null}
+
+        {deck.themingStatus === "failed" ? (
+          <div className="mt-4 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+            Deck theming failed: {deck.themingError ?? "Unknown error."}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 md:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">{deck.title}</h2>
+            <p className="text-sm text-slate-600">Total cards: {cardCount}</p>
+          </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           <button
@@ -184,18 +217,6 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
           </button>
         </div>
 
-        {deck.themingStatus === "running" ? (
-          <div className="mt-4 rounded-lg border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900">
-            Generating themed deck...
-          </div>
-        ) : null}
-
-        {deck.themingStatus === "failed" ? (
-          <div className="mt-4 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
-            Deck theming failed: {deck.themingError ?? "Unknown error."}
-          </div>
-        ) : null}
-
         {unresolvedCardNames.length > 0 ? (
           <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
             Missing image data for: {unresolvedCardNames.join(", ")}
@@ -207,12 +228,12 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
             const themedDetails = themedDetailsByOriginalCard.get(card.name);
 
             return (
-            <DeckCardRow
-              card={card}
-              key={card._id ?? `${card.name}-${card.quantity}`}
-              themedDescription={themedDetails?.themedDescription ?? null}
-              themedName={themedDetails?.themedName ?? null}
-            />
+              <DeckCardRow
+                card={card}
+                key={card._id ?? `${card.name}-${card.quantity}`}
+                themedDescription={themedDetails?.themedDescription ?? null}
+                themedName={themedDetails?.themedName ?? null}
+              />
             );
           })}
         </ul>
