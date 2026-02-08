@@ -1,23 +1,35 @@
 import * as React from "react";
 import { Meteor } from "meteor/meteor";
 import { useFind, useSubscribe } from "meteor/react-meteor-data";
-import { DeckCardsCollection, DeckMethodNames, DeckPublicationNames, DecksCollection } from "/imports/api/decks";
-import type { DeckCardDoc, DeckCopyResult, DeckDoc, DeckThemeStartResult } from "/imports/api/decks";
+import {
+  DeckCardsCollection,
+  DeckMethodNames,
+  DeckPublicationNames,
+  DecksCollection,
+  ThemedDeckCardsCollection,
+} from "/imports/api/decks";
+import type { DeckCardDoc, DeckCopyResult, DeckDoc, DeckThemeStartResult, ThemedDeckCardDoc } from "/imports/api/decks";
 import { DeckCardRow } from "./DeckCardRow";
 import { ThemedDeckGrid } from "./ThemedDeckGrid";
+import { buildThemedNameByOriginalCard } from "./themedNames";
 
 interface DeckViewProps {
   deckId: string;
   onDeckCopied: (deckId: string) => void;
+  onDeckDeleted: () => void;
   unresolvedCardNames?: string[];
 }
 
-export const DeckView = ({ deckId, onDeckCopied, unresolvedCardNames = [] }: DeckViewProps) => {
+export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNames = [] }: DeckViewProps) => {
   const isDeckLoading = useSubscribe(DeckPublicationNames.publicOne, deckId);
   const isCardsLoading = useSubscribe(DeckPublicationNames.cardsByDeck, deckId);
+  const isThemedCardsLoading = useSubscribe(DeckPublicationNames.themedCardsByDeck, deckId);
 
   const decks = useFind(() => DecksCollection.find({ _id: deckId })) as DeckDoc[];
   const cards = useFind(() => DeckCardsCollection.find({ deckId }, { sort: { name: 1 } })) as DeckCardDoc[];
+  const themedCards = useFind(() =>
+    ThemedDeckCardsCollection.find({ deckId }, { sort: { originalCardName: 1 } }),
+  ) as ThemedDeckCardDoc[];
 
   const [isThemeModalOpen, setIsThemeModalOpen] = React.useState<boolean>(false);
   const [themeUniverse, setThemeUniverse] = React.useState<string>("");
@@ -29,10 +41,15 @@ export const DeckView = ({ deckId, onDeckCopied, unresolvedCardNames = [] }: Dec
   const [copyTitle, setCopyTitle] = React.useState<string>("");
   const [isCopying, setIsCopying] = React.useState<boolean>(false);
   const [copyErrorMessage, setCopyErrorMessage] = React.useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState<boolean>(false);
 
-  const isLoading = isDeckLoading() || isCardsLoading();
+  const isLoading = isDeckLoading() || isCardsLoading() || isThemedCardsLoading();
   const deck = decks[0];
   const cardCount = cards.reduce((sum, card) => sum + card.quantity, 0);
+  const themedNameByOriginalCard = React.useMemo(
+    () => (deck?.themingStatus === "completed" ? buildThemedNameByOriginalCard(themedCards) : new Map<string, string>()),
+    [deck?.themingStatus, themedCards],
+  );
 
   if (isLoading) {
     return <p className="text-sm text-slate-500">Loading deck...</p>;
@@ -105,6 +122,27 @@ export const DeckView = ({ deckId, onDeckCopied, unresolvedCardNames = [] }: Dec
     }
   };
 
+  const handleDeleteDeck = async () => {
+    const shouldDelete = window.confirm(`Delete deck "${deck.title}"? This cannot be undone.`);
+    if (!shouldDelete) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await Meteor.callAsync(DeckMethodNames.delete, { deckId });
+      onDeckDeleted();
+    } catch (error) {
+      if (error instanceof Error && error.message.trim().length > 0) {
+        window.alert(error.message);
+      } else {
+        window.alert("Failed to delete deck.");
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <section className="space-y-4">
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 md:p-6">
@@ -126,13 +164,21 @@ export const DeckView = ({ deckId, onDeckCopied, unresolvedCardNames = [] }: Dec
             {deck.themingStatus === "completed" ? "Re-theme Deck" : "Theme Deck"}
           </button>
         </div>
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap gap-2">
           <button
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
             onClick={openCopyModal}
             type="button"
           >
             Copy Deck
+          </button>
+          <button
+            className="rounded-lg border border-red-300 px-3 py-2 text-sm text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isDeleting}
+            onClick={handleDeleteDeck}
+            type="button"
+          >
+            {isDeleting ? "Deleting..." : "Delete Deck"}
           </button>
         </div>
 
@@ -156,7 +202,11 @@ export const DeckView = ({ deckId, onDeckCopied, unresolvedCardNames = [] }: Dec
 
         <ul className="mt-4 grid grid-cols-1 gap-3">
           {cards.map((card) => (
-            <DeckCardRow card={card} key={card._id ?? `${card.name}-${card.quantity}`} />
+            <DeckCardRow
+              card={card}
+              key={card._id ?? `${card.name}-${card.quantity}`}
+              themedName={themedNameByOriginalCard.get(card.name) ?? null}
+            />
           ))}
         </ul>
       </div>

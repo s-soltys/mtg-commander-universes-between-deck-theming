@@ -1,6 +1,7 @@
 import * as React from "react";
+import { Meteor } from "meteor/meteor";
 import { useFind, useSubscribe } from "meteor/react-meteor-data";
-import { DeckPublicationNames, DecksCollection } from "/imports/api/decks";
+import { DeckMethodNames, DeckPublicationNames, DecksCollection } from "/imports/api/decks";
 import type { DeckDoc } from "/imports/api/decks";
 
 const formatDateTime = (value: Date): string => value.toLocaleString();
@@ -24,6 +25,32 @@ const getStatusTone = (status: DeckDoc["themingStatus"]): string => {
 export const DeckListPage = () => {
   const isDecksLoading = useSubscribe(DeckPublicationNames.list);
   const decks = useFind(() => DecksCollection.find({}, { sort: { updatedAt: -1, createdAt: -1 } })) as DeckDoc[];
+  const [deletingDeckIds, setDeletingDeckIds] = React.useState<string[]>([]);
+
+  const handleDeleteDeck = async (deck: DeckDoc): Promise<void> => {
+    const deckId = deck._id;
+    if (!deckId) {
+      return;
+    }
+
+    const shouldDelete = window.confirm(`Delete deck "${deck.title}"? This cannot be undone.`);
+    if (!shouldDelete) {
+      return;
+    }
+
+    setDeletingDeckIds((previous) => [...previous, deckId]);
+    try {
+      await Meteor.callAsync(DeckMethodNames.delete, { deckId });
+    } catch (error) {
+      if (error instanceof Error && error.message.trim().length > 0) {
+        window.alert(error.message);
+      } else {
+        window.alert("Failed to delete deck.");
+      }
+    } finally {
+      setDeletingDeckIds((previous) => previous.filter((value) => value !== deckId));
+    }
+  };
 
   if (isDecksLoading() && decks.length === 0) {
     return <p className="text-sm text-slate-500">Loading decks...</p>;
@@ -44,6 +71,7 @@ export const DeckListPage = () => {
         {decks.map((deck) => {
           const deckId = deck._id;
           const deckHref = deckId ? `/decks/${encodeURIComponent(deckId)}` : "/";
+          const isDeleting = deckId ? deletingDeckIds.includes(deckId) : false;
 
           return (
             <li className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" key={deckId ?? deck.title}>
@@ -61,6 +89,16 @@ export const DeckListPage = () => {
                 >
                   {deck.themingStatus}
                 </span>
+              </div>
+              <div className="mt-3">
+                <button
+                  className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isDeleting || !deckId}
+                  onClick={() => void handleDeleteDeck(deck)}
+                  type="button"
+                >
+                  {isDeleting ? "Deleting..." : "Delete"}
+                </button>
               </div>
             </li>
           );

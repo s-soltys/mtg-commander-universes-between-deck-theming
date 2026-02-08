@@ -45,6 +45,14 @@ export interface DeckCopyResult {
   cardCount: number;
 }
 
+export interface DeckDeleteInput {
+  deckId: string;
+}
+
+export interface DeckDeleteResult {
+  deckId: string;
+}
+
 export interface DeckThemeStartInput {
   deckId: string;
   themeUniverse: string;

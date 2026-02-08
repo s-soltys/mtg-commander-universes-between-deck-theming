@@ -5,6 +5,7 @@ import {
   __setCardImageResolverForTests,
   copyDeck,
   createDeck,
+  deleteDeck,
   startDeckThemingMethod,
 } from "/imports/api/decks/methods";
 import {
@@ -355,6 +356,71 @@ describe("createDeck", function () {
   it("rejects copy when source deck is not found", async function () {
     await assert.rejects(
       copyDeck({ sourceDeckId: "missing-deck-id", title: "Copied Deck" }),
+      (error: unknown) => error instanceof Error,
+    );
+  });
+
+  it("deletes a deck and all associated card documents", async function () {
+    const now = new Date();
+    const deckId = await DecksCollection.insertAsync({
+      title: "Delete Me",
+      themingStatus: "completed",
+      themingThemeUniverse: "Dune",
+      themingArtStyleBrief: "Painterly",
+      themingStartedAt: now,
+      themingCompletedAt: now,
+      themingError: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await DeckCardsCollection.insertAsync({
+      deckId,
+      name: "Arcane Signet",
+      quantity: 1,
+      imageUrl: "https://img/arcane-signet",
+      imageSource: "scryfall",
+      scryfallId: "arcane-signet-id",
+      createdAt: now,
+    });
+    await ThemedDeckCardsCollection.insertAsync({
+      deckId,
+      originalCardName: "Arcane Signet",
+      quantity: 1,
+      isBasicLand: false,
+      status: "generated",
+      themedName: "Guild Beacon",
+      themedFlavorText: "Flavor",
+      themedConcept: "Concept",
+      themedImagePrompt: "Prompt",
+      constraintsApplied: [],
+      errorMessage: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const result = await deleteDeck({ deckId });
+    assert.strictEqual(result.deckId, deckId);
+
+    const deck = await DecksCollection.findOneAsync({ _id: deckId });
+    const cards = await DeckCardsCollection.find({ deckId }).fetch();
+    const themedCards = await ThemedDeckCardsCollection.find({ deckId }).fetch();
+
+    assert.strictEqual(deck, undefined);
+    assert.deepStrictEqual(cards, []);
+    assert.deepStrictEqual(themedCards, []);
+  });
+
+  it("rejects delete for missing deck id", async function () {
+    await assert.rejects(
+      deleteDeck({ deckId: "" }),
+      (error: unknown) => error instanceof Error,
+    );
+  });
+
+  it("rejects delete when deck is not found", async function () {
+    await assert.rejects(
+      deleteDeck({ deckId: "missing-deck-id" }),
       (error: unknown) => error instanceof Error,
     );
   });

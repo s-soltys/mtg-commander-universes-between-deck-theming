@@ -3,9 +3,10 @@ import type { DeckCardDoc } from "/imports/api/decks";
 
 interface DeckCardRowProps {
   card: DeckCardDoc;
+  themedName?: string | null;
 }
 
-export const DeckCardRow = ({ card }: DeckCardRowProps) => {
+export const DeckCardRow = ({ card, themedName = null }: DeckCardRowProps) => {
   return (
     <li className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3">
       {card.imageUrl ? (
@@ -17,6 +18,11 @@ export const DeckCardRow = ({ card }: DeckCardRowProps) => {
       )}
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-slate-900">{card.name}</p>
+        {themedName ? (
+          <p className="truncate text-xs text-slate-600">
+            Themed: <span className="font-medium text-slate-800">{themedName}</span>
+          </p>
+        ) : null}
         <p className="text-xs text-slate-500">Qty: {card.quantity}</p>
       </div>
     </li>

@@ -1,11 +1,13 @@
 import { Meteor } from "meteor/meteor";
-import { DeckCardsCollection, DecksCollection } from "./collections";
+import { DeckCardsCollection, DecksCollection, ThemedDeckCardsCollection } from "./collections";
 import { parseDecklist } from "./parser";
 import { resolveCardFromScryfall } from "./scryfall";
 import { startDeckTheming } from "./theming";
 import type {
   DeckCopyInput,
   DeckCopyResult,
+  DeckDeleteInput,
+  DeckDeleteResult,
   DeckCreateInput,
   DeckCreateResult,
   DeckThemeStartInput,
@@ -34,6 +36,12 @@ const validateDeckCopyInput = ({ sourceDeckId, title }: DeckCopyInput): void => 
 
   if (title.trim().length === 0) {
     throw new Meteor.Error("invalid-title", "Title is required.");
+  }
+};
+
+const validateDeckDeleteInput = ({ deckId }: DeckDeleteInput): void => {
+  if (typeof deckId !== "string" || deckId.trim().length === 0) {
+    throw new Meteor.Error("invalid-deck-id", "Deck id is required.");
   }
 };
 
@@ -131,9 +139,26 @@ export const copyDeck = async ({ sourceDeckId, title }: DeckCopyInput): Promise<
   };
 };
 
+export const deleteDeck = async ({ deckId }: DeckDeleteInput): Promise<DeckDeleteResult> => {
+  validateDeckDeleteInput({ deckId });
+
+  const deckIdValue = deckId.trim();
+  const existingDeck = await DecksCollection.findOneAsync({ _id: deckIdValue });
+  if (!existingDeck) {
+    throw new Meteor.Error("deck-not-found", "Deck not found.");
+  }
+
+  await ThemedDeckCardsCollection.removeAsync({ deckId: deckIdValue });
+  await DeckCardsCollection.removeAsync({ deckId: deckIdValue });
+  await DecksCollection.removeAsync({ _id: deckIdValue });
+
+  return { deckId: deckIdValue };
+};
+
 export const registerDeckMethods = (): void => {
   Meteor.methods({
     "decks.copy": copyDeck,
+    "decks.delete": deleteDeck,
     "decks.create": createDeck,
     "decks.startTheming": startDeckThemingMethod,
   });

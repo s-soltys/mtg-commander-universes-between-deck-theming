@@ -88,6 +88,7 @@ export const App = () => {
           <DeckView
             deckId={page.deckId}
             onDeckCopied={(copiedDeckId) => navigateToPath(`/decks/${encodeURIComponent(copiedDeckId)}`)}
+            onDeckDeleted={() => navigateToPath("/")}
             unresolvedCardNames={lastCreateResult?.deckId === page.deckId ? lastCreateResult.unresolvedCardNames : []}
           />
         ) : null}

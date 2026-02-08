@@ -49,6 +49,13 @@
 - Deck copy must require a new title for the copied deck.
 - Copied decks must reset theming state and must not inherit generated themed card results.
 
+## Deck Deletion Rules
+- Deck deletion must run through a server method and remove the deck plus associated deck cards and themed deck cards.
+- Deck deletion UI must require explicit user confirmation before the delete operation runs.
+
+## Decklist Presentation Rules
+- When a deck has completed theming, each decklist card row must show themed card name alongside the original card name.
+
 ## Rule Maintenance
 - Treat user direction changes and new perspectives as rule-update triggers.
 - When the user provides a new direction or an interesting perspective, propose a concrete refinement to `AGENTS.md` (and any related rules file) in the same thread.

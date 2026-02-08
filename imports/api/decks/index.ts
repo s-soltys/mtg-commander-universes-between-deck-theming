@@ -2,6 +2,8 @@ export type {
   DeckCardDoc,
   DeckCopyInput,
   DeckCopyResult,
+  DeckDeleteInput,
+  DeckDeleteResult,
   DeckCreateInput,
   DeckCreateResult,
   DeckDoc,
@@ -19,6 +21,7 @@ export { DeckCardsCollection, DecksCollection, ThemedDeckCardsCollection } from 
 
 export const DeckMethodNames = {
   copy: "decks.copy",
+  delete: "decks.delete",
   create: "decks.create",
   startTheming: "decks.startTheming",
 } as const;
