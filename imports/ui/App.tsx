@@ -1,7 +1,12 @@
 import * as React from "react";
 import type { DeckCreateResult } from "/imports/api/decks";
 import { DeckCreateForm } from "./decks/DeckCreateForm";
+import { DeckListPage } from "./decks/DeckListPage";
 import { DeckView } from "./decks/DeckView";
+
+type AppRoute = "home" | "decks";
+
+const getRouteFromUrl = (): AppRoute => (window.location.pathname === "/decks" ? "decks" : "home");
 
 const getDeckIdFromUrl = (): string | null => {
   const params = new URLSearchParams(window.location.search);
@@ -22,11 +27,13 @@ const getShareUrl = (deckId: string): string => {
 };
 
 export const App = () => {
+  const [route, setRoute] = React.useState<AppRoute>(() => getRouteFromUrl());
   const [deckId, setDeckId] = React.useState<string | null>(() => getDeckIdFromUrl());
   const [lastCreateResult, setLastCreateResult] = React.useState<DeckCreateResult | null>(null);
 
   React.useEffect(() => {
     const onPopState = () => {
+      setRoute(getRouteFromUrl());
       setDeckId(getDeckIdFromUrl());
     };
 
@@ -46,26 +53,48 @@ export const App = () => {
         <header>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">Commander Deck Share</h1>
           <p className="mt-1 text-sm text-slate-600">Create, store, and share MTG Commander deck lists with card images.</p>
+          <nav className="mt-3 flex flex-wrap gap-4 text-sm font-medium">
+            <a
+              className={route === "home" ? "text-red-700" : "text-slate-700 hover:text-red-700"}
+              href="/"
+              onClick={() => setRoute("home")}
+            >
+              Create Deck
+            </a>
+            <a
+              className={route === "decks" ? "text-red-700" : "text-slate-700 hover:text-red-700"}
+              href="/decks"
+              onClick={() => setRoute("decks")}
+            >
+              Deck List
+            </a>
+          </nav>
         </header>
 
-        <DeckCreateForm onCreated={handleDeckCreated} />
+        {route === "decks" ? <DeckListPage /> : null}
 
-        {deckId ? (
-          <section className="space-y-3">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
-              <p className="font-medium text-slate-900">Share URL</p>
-              <p className="mt-1 break-all">{getShareUrl(deckId)}</p>
-            </div>
-            <DeckView
-              deckId={deckId}
-              unresolvedCardNames={
-                lastCreateResult?.deckId === deckId ? lastCreateResult.unresolvedCardNames : []
-              }
-            />
-          </section>
-        ) : (
-          <p className="text-sm text-slate-500">Create a deck to get a shareable URL.</p>
-        )}
+        {route === "home" ? (
+          <>
+            <DeckCreateForm onCreated={handleDeckCreated} />
+
+            {deckId ? (
+              <section className="space-y-3">
+                <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                  <p className="font-medium text-slate-900">Share URL</p>
+                  <p className="mt-1 break-all">{getShareUrl(deckId)}</p>
+                </div>
+                <DeckView
+                  deckId={deckId}
+                  unresolvedCardNames={
+                    lastCreateResult?.deckId === deckId ? lastCreateResult.unresolvedCardNames : []
+                  }
+                />
+              </section>
+            ) : (
+              <p className="text-sm text-slate-500">Create a deck to get a shareable URL.</p>
+            )}
+          </>
+        ) : null}
       </main>
     </div>
   );

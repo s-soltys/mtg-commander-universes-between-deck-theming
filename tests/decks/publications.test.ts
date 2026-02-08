@@ -3,6 +3,7 @@ import { DeckCardsCollection, DecksCollection, ThemedDeckCardsCollection } from 
 import {
   findDeckCardsCursorByDeckId,
   findDeckCursorById,
+  findDecksCursor,
   findThemedDeckCardsCursorByDeckId,
 } from "/imports/api/decks/publications";
 
@@ -71,6 +72,40 @@ describe("deck publications", function () {
     assert.strictEqual(cardDocs.length, 1);
     assert.strictEqual(cardDocs[0].deckId, deckIdA);
     assert.strictEqual(cardDocs[0].name, "Arcane Signet");
+  });
+
+  it("returns decks ordered by latest update", async function () {
+    const earlier = new Date("2025-01-01T00:00:00.000Z");
+    const later = new Date("2025-01-02T00:00:00.000Z");
+
+    await DecksCollection.insertAsync({
+      title: "Older Deck",
+      themingStatus: "idle",
+      themingThemeUniverse: null,
+      themingArtStyleBrief: null,
+      themingStartedAt: null,
+      themingCompletedAt: null,
+      themingError: null,
+      createdAt: earlier,
+      updatedAt: earlier,
+    });
+    await DecksCollection.insertAsync({
+      title: "Newer Deck",
+      themingStatus: "idle",
+      themingThemeUniverse: null,
+      themingArtStyleBrief: null,
+      themingStartedAt: null,
+      themingCompletedAt: null,
+      themingError: null,
+      createdAt: later,
+      updatedAt: later,
+    });
+
+    const deckDocs = await findDecksCursor().fetch();
+
+    assert.strictEqual(deckDocs.length, 2);
+    assert.strictEqual(deckDocs[0].title, "Newer Deck");
+    assert.strictEqual(deckDocs[1].title, "Older Deck");
   });
 
   it("returns themed cards scoped to the requested deck", async function () {

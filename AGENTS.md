@@ -43,3 +43,8 @@
 - Treat user direction changes and new perspectives as rule-update triggers.
 - When the user provides a new direction or an interesting perspective, propose a concrete refinement to `AGENTS.md` (and any related rules file) in the same thread.
 - Keep rules current with the latest confirmed direction; do not leave guidance stale after a direction change.
+
+## Runtime Command Consent Rules
+- Ask the user before starting the app (`meteor`, `npm run start`, `npm run dev`, or equivalent long-running watch/server commands).
+- Do not start or restart the app unless the user explicitly confirms for the current task.
+- If app runtime verification would help, offer it as an option instead of running it by default.

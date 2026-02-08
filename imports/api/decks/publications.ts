@@ -3,6 +3,8 @@ import { DeckCardsCollection, DecksCollection, ThemedDeckCardsCollection } from 
 
 export const findDeckCursorById = (deckId: string) => DecksCollection.find({ _id: deckId });
 
+export const findDecksCursor = () => DecksCollection.find({}, { sort: { updatedAt: -1, createdAt: -1 } });
+
 export const findDeckCardsCursorByDeckId = (deckId: string) =>
   DeckCardsCollection.find({ deckId }, { sort: { name: 1 } });
 
@@ -10,6 +12,10 @@ export const findThemedDeckCardsCursorByDeckId = (deckId: string) =>
   ThemedDeckCardsCollection.find({ deckId }, { sort: { originalCardName: 1 } });
 
 export const registerDeckPublications = (): void => {
+  Meteor.publish("decks.list", function publishDecksList() {
+    return findDecksCursor();
+  });
+
   Meteor.publish("decks.publicOne", function publishDeck(deckId: string) {
     if (typeof deckId !== "string" || deckId.length === 0) {
       return DecksCollection.find({ _id: null });

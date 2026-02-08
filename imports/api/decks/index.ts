@@ -21,6 +21,7 @@ export const DeckMethodNames = {
 } as const;
 
 export const DeckPublicationNames = {
+  list: "decks.list",
   publicOne: "decks.publicOne",
   cardsByDeck: "deckCards.byDeck",
   themedCardsByDeck: "themedDeckCards.byDeck",
