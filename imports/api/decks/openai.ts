@@ -25,7 +25,17 @@ interface ChatCompletionsResponse {
   }>;
 }
 
-const OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
+interface ResponsesApiResponse {
+  output_text?: string;
+  output?: Array<{
+    content?: Array<{
+      type?: string;
+      text?: string;
+    }>;
+  }>;
+}
+
+const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const OPENAI_IMAGE_GENERATIONS_URL = "https://api.openai.com/v1/images/generations";
 const DEFAULT_MODEL = "gpt-5-mini";
 const DEFAULT_IMAGE_MODEL = "gpt-image-1.5";
@@ -41,7 +51,7 @@ export const generateDeckThemeWithOpenAI = async (
 
   const prompt = buildThemingPrompt(input);
 
-  const response = await fetch(OPENAI_CHAT_COMPLETIONS_URL, {
+  const response = await fetch(OPENAI_RESPONSES_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -49,10 +59,9 @@ export const generateDeckThemeWithOpenAI = async (
     },
     body: JSON.stringify({
       model: DEFAULT_MODEL,
-      temperature: 0.2,
-      response_format: {
-        type: "json_schema",
-        json_schema: {
+      text: {
+        format: {
+          type: "json_schema",
           name: "themed_deck_cards",
           strict: true,
           schema: {
@@ -90,25 +99,51 @@ export const generateDeckThemeWithOpenAI = async (
           },
         },
       },
-      messages: [
+      input: [
         {
           role: "system",
-          content: "You are an expert MTG Universe-Beyond card themer.",
+          content: [
+            {
+              type: "input_text",
+              text: "You are an expert MTG Universe-Beyond card themer.",
+            },
+          ],
         },
         {
           role: "user",
-          content: prompt,
+          content: [
+            {
+              type: "input_text",
+              text: prompt,
+            },
+          ],
         },
       ],
     }),
   });
 
   if (!response.ok) {
+    const body = await response.text();
+    let errBody: unknown = body;
+    try {
+      errBody = body ? JSON.parse(body) : body;
+    } catch {
+      // keep as text
+    }
+
+    console.error("[openai] Deck theming request failed:", {
+      status: response.status,
+      statusText: response.statusText,
+      body: errBody,
+      model: DEFAULT_MODEL,
+      cardsCount: input.cards.length,
+    });
+
     throw new Error(`OpenAI request failed with status ${response.status}.`);
   }
 
-  const payload = (await response.json()) as ChatCompletionsResponse;
-  const content = payload.choices?.[0]?.message?.content;
+  const payload = (await response.json()) as ResponsesApiResponse | ChatCompletionsResponse;
+  const content = extractStructuredContent(payload);
   if (!content) {
     throw new Error("OpenAI returned empty content.");
   }
@@ -119,6 +154,34 @@ export const generateDeckThemeWithOpenAI = async (
   }
 
   return parsed.cards;
+};
+
+const extractStructuredContent = (payload: ResponsesApiResponse | ChatCompletionsResponse): string | null => {
+  if ("output_text" in payload && typeof payload.output_text === "string" && payload.output_text.trim().length > 0) {
+    return payload.output_text;
+  }
+
+  if ("output" in payload && Array.isArray(payload.output)) {
+    for (const item of payload.output) {
+      const contentItems = item.content;
+      if (!Array.isArray(contentItems)) {
+        continue;
+      }
+
+      for (const part of contentItems) {
+        if (part.type === "output_text" && typeof part.text === "string" && part.text.trim().length > 0) {
+          return part.text;
+        }
+      }
+    }
+  }
+
+  const chatCompletionsContent = payload.choices?.[0]?.message?.content;
+  if (typeof chatCompletionsContent === "string" && chatCompletionsContent.trim().length > 0) {
+    return chatCompletionsContent;
+  }
+
+  return null;
 };
 
 export const generateThemedCardImageWithOpenAI = async (prompt: string): Promise<string> => {

@@ -8,6 +8,7 @@ import "./decks/publications.test";
 import "./decks/themedNames.test";
 import "./decks/theming.test";
 import "./decks/themedImages.test";
+import "./decks/openai.test";
 
 if (Meteor.isServer) {
   require("./decks/themedCardComposites.test");
