@@ -1,4 +1,8 @@
 export type {
+  AppSettingsClearOpenAIKeyResult,
+  AppSettingsPublicDoc,
+  AppSettingsSetOpenAIKeyInput,
+  AppSettingsSetOpenAIKeyResult,
   DeckCardDoc,
   DeckCopyInput,
   DeckCopyResult,
@@ -21,7 +25,13 @@ export type {
   ThemedDeckCardGeneratedPayload,
 } from "./types";
 
-export { DeckCardsCollection, DecksCollection, ThemedDeckCardsCollection } from "./collections";
+export {
+  AppSettingsCollection,
+  AppSettingsPublicCollection,
+  DeckCardsCollection,
+  DecksCollection,
+  ThemedDeckCardsCollection,
+} from "./collections";
 
 export const DeckMethodNames = {
   copy: "decks.copy",
@@ -30,6 +40,8 @@ export const DeckMethodNames = {
   startTheming: "decks.startTheming",
   generateThemedImages: "decks.generateThemedImages",
   generateThemedImageForCard: "decks.generateThemedImageForCard",
+  setOpenAIKey: "appSettings.setOpenAIKey",
+  clearOpenAIKey: "appSettings.clearOpenAIKey",
 } as const;
 
 export const DeckPublicationNames = {
@@ -37,4 +49,5 @@ export const DeckPublicationNames = {
   publicOne: "decks.publicOne",
   cardsByDeck: "deckCards.byDeck",
   themedCardsByDeck: "themedDeckCards.byDeck",
+  appSettingsPublic: "appSettings.public",
 } as const;

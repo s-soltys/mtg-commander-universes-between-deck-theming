@@ -1,4 +1,5 @@
 import { buildThemingPrompt } from "./themingPrompt";
+import { getOpenAIApiKeyForRuntime } from "./appSettings";
 import type { ThemedDeckCardGeneratedPayload } from "./types";
 
 interface OpenAIThemingInputCard {
@@ -32,8 +33,8 @@ const DEFAULT_IMAGE_MODEL = "gpt-image-1";
 export const generateDeckThemeWithOpenAI = async (
   input: OpenAIThemeDeckInput,
 ): Promise<ThemedDeckCardGeneratedPayload[]> => {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey || apiKey.trim().length === 0) {
+  const apiKey = await getOpenAIApiKeyForRuntime();
+  if (!apiKey) {
     console.error("[openai] Missing OPENAI_API_KEY at runtime. Verify .env/.env.local and restart Meteor.");
     throw new Error("Missing OPENAI_API_KEY.");
   }
@@ -121,8 +122,8 @@ export const generateDeckThemeWithOpenAI = async (
 };
 
 export const generateThemedCardImageWithOpenAI = async (prompt: string): Promise<string> => {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey || apiKey.trim().length === 0) {
+  const apiKey = await getOpenAIApiKeyForRuntime();
+  if (!apiKey) {
     console.error("[openai] Missing OPENAI_API_KEY at runtime. Verify .env/.env.local and restart Meteor.");
     throw new Error("Missing OPENAI_API_KEY.");
   }

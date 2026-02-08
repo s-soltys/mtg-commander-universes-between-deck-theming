@@ -4,9 +4,13 @@ import { parseDecklist } from "./parser";
 import { resolveCardFromScryfall } from "./scryfall";
 import { startDeckTheming } from "./theming";
 import { generateDeckThemedImages, generateThemedImageForCard } from "./themedImages";
+import { clearOpenAIKey, setOpenAIKey } from "./appSettings";
 import type {
+  AppSettingsSetOpenAIKeyInput,
+  AppSettingsSetOpenAIKeyResult,
   DeckCopyInput,
   DeckCopyResult,
+  AppSettingsClearOpenAIKeyResult,
   DeckDeleteInput,
   DeckDeleteResult,
   DeckCreateInput,
@@ -176,6 +180,9 @@ export const registerDeckMethods = (): void => {
     "decks.startTheming": startDeckThemingMethod,
     "decks.generateThemedImages": generateDeckThemedImagesMethod,
     "decks.generateThemedImageForCard": generateThemedImageForCardMethod,
+    "appSettings.setOpenAIKey": (input: AppSettingsSetOpenAIKeyInput): Promise<AppSettingsSetOpenAIKeyResult> =>
+      setOpenAIKey(input),
+    "appSettings.clearOpenAIKey": (): Promise<AppSettingsClearOpenAIKeyResult> => clearOpenAIKey(),
   });
 };
 

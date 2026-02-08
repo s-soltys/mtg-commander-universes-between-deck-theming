@@ -74,3 +74,9 @@
 - Ask the user before starting the app (`meteor`, `npm run start`, `npm run dev`, or equivalent long-running watch/server commands).
 - Do not start or restart the app unless the user explicitly confirms for the current task.
 - If app runtime verification would help, offer it as an option instead of running it by default.
+
+## App Settings & Secrets Rules
+- OpenAI key configuration must be managed server-side.
+- Client may only access masked OpenAI key status through a publication.
+- Runtime OpenAI calls must resolve keys from app settings first, then fall back to environment variables.
+- Raw OpenAI API keys must never be published to clients.

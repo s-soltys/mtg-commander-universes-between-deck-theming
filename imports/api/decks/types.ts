@@ -149,3 +149,32 @@ export interface DeckThemeImageGenerateForCardResult {
   generated: boolean;
   imageUrl: string | null;
 }
+
+export interface AppSettingsDoc {
+  _id?: string;
+  openAIApiKey: string | null;
+  updatedAt: Date;
+}
+
+export interface AppSettingsPublicDoc {
+  _id?: string;
+  hasOpenAIApiKey: boolean;
+  maskedOpenAIApiKey: string | null;
+  updatedAt: Date | null;
+}
+
+export interface AppSettingsSetOpenAIKeyInput {
+  openAIApiKey: string;
+}
+
+export interface AppSettingsSetOpenAIKeyResult {
+  hasOpenAIApiKey: true;
+  maskedOpenAIApiKey: string;
+  updatedAt: Date;
+}
+
+export interface AppSettingsClearOpenAIKeyResult {
+  hasOpenAIApiKey: false;
+  maskedOpenAIApiKey: null;
+  updatedAt: Date;
+}

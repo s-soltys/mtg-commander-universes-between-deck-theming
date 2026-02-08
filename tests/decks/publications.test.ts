@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
-import { DeckCardsCollection, DecksCollection, ThemedDeckCardsCollection } from "/imports/api/decks";
+import { AppSettingsCollection, DeckCardsCollection, DecksCollection, ThemedDeckCardsCollection } from "/imports/api/decks";
 import {
+  findAppSettingsCursor,
   findDeckCardsCursorByDeckId,
   findDeckCursorById,
   findDecksCursor,
@@ -8,6 +9,7 @@ import {
 } from "/imports/api/decks/publications";
 
 const clearDeckData = async (): Promise<void> => {
+  await AppSettingsCollection.removeAsync({});
   await ThemedDeckCardsCollection.removeAsync({});
   await DeckCardsCollection.removeAsync({});
   await DecksCollection.removeAsync({});
@@ -180,5 +182,19 @@ describe("deck publications", function () {
     assert.deepStrictEqual(deckDocs, []);
     assert.deepStrictEqual(cardDocs, []);
     assert.deepStrictEqual(themedDocs, []);
+  });
+
+  it("returns the singleton app settings cursor", async function () {
+    const now = new Date();
+    await AppSettingsCollection.insertAsync({
+      _id: "global",
+      openAIApiKey: "sk-secret-1234",
+      updatedAt: now,
+    });
+
+    const settingsDocs = await findAppSettingsCursor().fetch();
+    assert.strictEqual(settingsDocs.length, 1);
+    assert.strictEqual(settingsDocs[0]._id, "global");
+    assert.strictEqual(settingsDocs[0].openAIApiKey, "sk-secret-1234");
   });
 });

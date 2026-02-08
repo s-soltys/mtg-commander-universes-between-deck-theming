@@ -3,6 +3,7 @@ import { Meteor } from "meteor/meteor";
 
 import "./decks/parser.test";
 import "./decks/methods.test";
+import "./decks/appSettings.test";
 import "./decks/publications.test";
 import "./decks/themedNames.test";
 import "./decks/theming.test";

@@ -1,5 +1,6 @@
 import { Meteor } from "meteor/meteor";
-import { DeckCardsCollection, DecksCollection, ThemedDeckCardsCollection } from "./collections";
+import { toAppSettingsPublicDoc } from "./appSettings";
+import { AppSettingsCollection, DeckCardsCollection, DecksCollection, ThemedDeckCardsCollection } from "./collections";
 
 export const findDeckCursorById = (deckId: string) => DecksCollection.find({ _id: deckId });
 
@@ -10,6 +11,8 @@ export const findDeckCardsCursorByDeckId = (deckId: string) =>
 
 export const findThemedDeckCardsCursorByDeckId = (deckId: string) =>
   ThemedDeckCardsCollection.find({ deckId }, { sort: { originalCardName: 1 } });
+
+export const findAppSettingsCursor = () => AppSettingsCollection.find({ _id: "global" });
 
 export const registerDeckPublications = (): void => {
   Meteor.publish("decks.list", function publishDecksList() {
@@ -38,5 +41,56 @@ export const registerDeckPublications = (): void => {
     }
 
     return findThemedDeckCardsCursorByDeckId(deckId);
+  });
+
+  Meteor.publish("appSettings.public", function publishAppSettingsPublic() {
+    this.added("app_settings_public", "global", {
+      hasOpenAIApiKey: false,
+      maskedOpenAIApiKey: null,
+      updatedAt: null,
+    });
+    this.ready();
+
+    const publishCurrentDoc = async () => {
+      const settings = await AppSettingsCollection.findOneAsync({ _id: "global" });
+      const publicDoc = toAppSettingsPublicDoc(settings);
+      this.changed("app_settings_public", "global", {
+        hasOpenAIApiKey: publicDoc.hasOpenAIApiKey,
+        maskedOpenAIApiKey: publicDoc.maskedOpenAIApiKey,
+        updatedAt: publicDoc.updatedAt,
+      });
+    };
+
+    void publishCurrentDoc();
+
+    const handle = findAppSettingsCursor().observeChanges({
+      added: async () => {
+        const settings = await AppSettingsCollection.findOneAsync({ _id: "global" });
+        const publicDoc = toAppSettingsPublicDoc(settings);
+        this.changed("app_settings_public", "global", {
+          hasOpenAIApiKey: publicDoc.hasOpenAIApiKey,
+          maskedOpenAIApiKey: publicDoc.maskedOpenAIApiKey,
+          updatedAt: publicDoc.updatedAt,
+        });
+      },
+      changed: async () => {
+        const settings = await AppSettingsCollection.findOneAsync({ _id: "global" });
+        const publicDoc = toAppSettingsPublicDoc(settings);
+        this.changed("app_settings_public", "global", {
+          hasOpenAIApiKey: publicDoc.hasOpenAIApiKey,
+          maskedOpenAIApiKey: publicDoc.maskedOpenAIApiKey,
+          updatedAt: publicDoc.updatedAt,
+        });
+      },
+      removed: () => {
+        this.changed("app_settings_public", "global", {
+          hasOpenAIApiKey: false,
+          maskedOpenAIApiKey: null,
+          updatedAt: null,
+        });
+      },
+    });
+
+    return () => handle.stop();
   });
 };
