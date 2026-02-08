@@ -41,6 +41,7 @@
 
 ## Deck Image Generation Rules
 - Themed image generation must run server-side only and only after deck theming is completed.
+- OpenAI themed image generation must be non-blocking server-side jobs. Methods should return start/queue acknowledgements immediately, and progress must be represented through persisted per-card status transitions (`idle` -> `generating` -> `generated|failed`).
 - Generate themed images from stored themed card prompts on a per-card basis and persist results on themed card records.
 - Deck details must expose per-card "Generate Image" actions in decklist rows and render generated themed art inline in those rows.
 - Per-card image generation must open a confirmation/edit dialog that allows changing themed card title and image prompt before triggering generation.

@@ -4,7 +4,7 @@ export interface ThemedCardDetails {
   themedName: string;
   themedDescription: string;
   themedImageUrl: string | null;
-  themedImageStatus: "idle" | "generated" | "failed";
+  themedImageStatus: "idle" | "generating" | "generated" | "failed";
   themedImageError: string | null;
   themedCompositeImageUrl: string | null;
   themedCompositeImageStatus: "idle" | "generating" | "generated" | "failed";

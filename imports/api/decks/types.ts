@@ -82,7 +82,7 @@ export interface ResolvedCardImage {
 }
 
 export type ThemedDeckCardStatus = "pending" | "generated" | "failed" | "skipped";
-export type ThemedDeckCardImageStatus = "idle" | "generated" | "failed";
+export type ThemedDeckCardImageStatus = "idle" | "generating" | "generated" | "failed";
 export type ThemedDeckCardCompositeStatus = "idle" | "generating" | "generated" | "failed";
 
 export interface ThemedDeckCardDoc {
@@ -135,8 +135,8 @@ export interface DeckThemeImagesGenerateInput {
 
 export interface DeckThemeImagesGenerateResult {
   deckId: string;
-  generatedCount: number;
-  failedCount: number;
+  startedCount: number;
+  alreadyGeneratingCount: number;
   skippedCount: number;
 }
 
@@ -151,8 +151,7 @@ export interface DeckThemeImageGenerateForCardInput {
 export interface DeckThemeImageGenerateForCardResult {
   deckId: string;
   originalCardName: string;
-  generated: boolean;
-  imageUrl: string | null;
+  started: boolean;
 }
 
 export interface DeckThemeCardCompositeGenerateForCardInput {

@@ -6,7 +6,7 @@ interface DeckCardRowProps {
   themedName?: string | null;
   themedDescription?: string | null;
   themedImageUrl?: string | null;
-  themedImageStatus?: "idle" | "generated" | "failed";
+  themedImageStatus?: "idle" | "generating" | "generated" | "failed";
   themedImageError?: string | null;
   themedCompositeImageUrl?: string | null;
   themedCompositeImageStatus?: "idle" | "generating" | "generated" | "failed";
@@ -34,8 +34,11 @@ export const DeckCardRow = ({
   canGenerateThemedCard = false,
   onGenerateThemedCard,
 }: DeckCardRowProps) => {
+  const imageStatusLabel = getImageStatusLabel(themedImageStatus);
+  const imageStatusClassName = getImageStatusClassName(themedImageStatus);
   const compositeStatusLabel = getCompositeStatusLabel(themedCompositeImageStatus);
   const compositeStatusClassName = getCompositeStatusClassName(themedCompositeImageStatus);
+  const isImageGenerating = themedImageStatus === "generating";
 
   return (
     <li className="grid min-h-80 grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-white p-4 xl:grid-cols-3">
@@ -68,17 +71,22 @@ export const DeckCardRow = ({
         <p className="mt-3 whitespace-pre-wrap text-sm leading-5 text-slate-700">
           {themedDescription ?? "Run deck theming to generate themed card details."}
         </p>
+        <div className="mt-3">
+          <span className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${imageStatusClassName}`}>
+            {imageStatusLabel}
+          </span>
+        </div>
         {themedImageStatus === "failed" && themedImageError ? (
           <p className="mt-2 text-sm text-red-600">{themedImageError}</p>
         ) : null}
         <div className="mt-3">
           <button
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={!canGenerateThemedImage}
+            disabled={!canGenerateThemedImage || isImageGenerating}
             onClick={onGenerateThemedImage}
             type="button"
           >
-            {themedImageUrl ? "Re-generate image" : "Generate image"}
+            {isImageGenerating ? "Generating image..." : themedImageUrl ? "Re-generate image" : "Generate image"}
           </button>
         </div>
       </div>
@@ -127,6 +135,38 @@ export const DeckCardRow = ({
       </div>
     </li>
   );
+};
+
+const getImageStatusLabel = (status: "idle" | "generating" | "generated" | "failed"): string => {
+  if (status === "generating") {
+    return "Generating";
+  }
+
+  if (status === "generated") {
+    return "Generated";
+  }
+
+  if (status === "failed") {
+    return "Failed";
+  }
+
+  return "Idle";
+};
+
+const getImageStatusClassName = (status: "idle" | "generating" | "generated" | "failed"): string => {
+  if (status === "generating") {
+    return "border-blue-300 bg-blue-50 text-blue-700";
+  }
+
+  if (status === "generated") {
+    return "border-emerald-300 bg-emerald-50 text-emerald-700";
+  }
+
+  if (status === "failed") {
+    return "border-red-300 bg-red-50 text-red-700";
+  }
+
+  return "border-slate-300 bg-slate-100 text-slate-700";
 };
 
 const getCompositeStatusLabel = (status: "idle" | "generating" | "generated" | "failed"): string => {

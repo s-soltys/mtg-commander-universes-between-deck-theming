@@ -200,9 +200,9 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
       );
 
       setImageGenerationSummary(
-        result.generated
-          ? `Generated image for ${result.originalCardName}.`
-          : `Skipped image generation for ${result.originalCardName}.`,
+        result.started
+          ? `Started image generation for ${result.originalCardName}.`
+          : `Image generation already running or skipped for ${result.originalCardName}.`,
       );
       setIsImageModalOpen(false);
     } catch (error) {
@@ -357,7 +357,9 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
             const themedDetails = themedDetailsByOriginalCard.get(card.name);
             const themedCard = themedCardsByOriginalName.get(card.name);
             const canGenerateThemedImage =
-              deck.themingStatus === "completed" && themedCard?.status === "generated";
+              deck.themingStatus === "completed" &&
+              themedCard?.status === "generated" &&
+              themedCard.themedGeneratedImageStatus !== "generating";
             const hasGeneratedThemedArt =
               themedCard?.status === "generated" &&
               themedCard?.themedGeneratedImageStatus === "generated" &&

@@ -10,6 +10,13 @@ import type {
 } from "./types";
 
 type ThemedImageGenerator = (prompt: string) => Promise<string>;
+interface ImageGenerationJob {
+  deckId: string;
+  originalCardName: string;
+  themedImagePrompt: string;
+}
+
+const IMAGE_GENERATION_CONCURRENCY_PER_DECK = 3;
 
 let themedImageGenerator: ThemedImageGenerator = generateThemedCardImageWithOpenAI;
 
@@ -71,34 +78,45 @@ export const generateDeckThemedImages = async (
     throw new Meteor.Error("themed-cards-missing", "No themed cards found for this deck.");
   }
 
-  const candidates = themedCards.filter((card) => shouldGenerateImage(card, input.forceRegenerate));
+  let startedCount = 0;
+  let alreadyGeneratingCount = 0;
+  let skippedCount = 0;
+  const startedJobs: ImageGenerationJob[] = [];
 
-  let generatedCount = 0;
-  let failedCount = 0;
-  const skippedCount = themedCards.length - candidates.length;
-
-  for (const card of candidates) {
-    const result = await generateImageForCard(deckId, card);
-    if (result.generated) {
-      generatedCount += 1;
-    } else {
-      failedCount += 1;
+  for (const card of themedCards) {
+    if (card.themedGeneratedImageStatus === "generating") {
+      alreadyGeneratingCount += 1;
+      continue;
     }
+
+    if (!shouldGenerateImage(card, input.forceRegenerate)) {
+      skippedCount += 1;
+      continue;
+    }
+
+    const started = await markImageGenerating({
+      deckId,
+      originalCardName: card.originalCardName,
+    });
+    if (!started) {
+      alreadyGeneratingCount += 1;
+      continue;
+    }
+
+    startedCount += 1;
+    startedJobs.push({
+      deckId,
+      originalCardName: card.originalCardName,
+      themedImagePrompt: card.themedImagePrompt ?? "",
+    });
   }
 
-  await DecksCollection.updateAsync(
-    { _id: deckId },
-    {
-      $set: {
-        updatedAt: new Date(),
-      },
-    },
-  );
+  startDeckImageGeneration(startedJobs);
 
   return {
     deckId,
-    generatedCount,
-    failedCount,
+    startedCount,
+    alreadyGeneratingCount,
     skippedCount,
   };
 };
@@ -126,16 +144,13 @@ export const generateThemedImageForCard = async (
     throw new Meteor.Error("themed-card-not-found", "Themed card not found.");
   }
 
-  await ThemedDeckCardsCollection.updateAsync(
-    { deckId, originalCardName },
-    {
-      $set: {
-        themedName,
-        themedImagePrompt,
-        updatedAt: new Date(),
-      },
-    },
-  );
+  if (card.themedGeneratedImageStatus === "generating") {
+    return {
+      deckId,
+      originalCardName,
+      started: false,
+    };
+  }
 
   const updatedCard = {
     ...card,
@@ -147,38 +162,84 @@ export const generateThemedImageForCard = async (
     return {
       deckId,
       originalCardName,
-      generated: false,
-      imageUrl: updatedCard.themedGeneratedImageUrl ?? null,
+      started: false,
     };
   }
 
-  const result = await generateImageForCard(deckId, updatedCard);
-  await DecksCollection.updateAsync(
-    { _id: deckId },
-    {
-      $set: {
-        updatedAt: new Date(),
-      },
-    },
-  );
+  const started = await markImageGenerating({
+    deckId,
+    originalCardName,
+    themedName,
+    themedImagePrompt,
+  });
+
+  if (!started) {
+    return {
+      deckId,
+      originalCardName,
+      started: false,
+    };
+  }
+
+  startImageGeneration({
+    deckId,
+    originalCardName,
+    themedImagePrompt,
+  });
 
   return {
     deckId,
     originalCardName,
-    generated: result.generated,
-    imageUrl: result.imageUrl,
+    started: true,
   };
 };
 
-const generateImageForCard = async (
-  deckId: string,
-  card: Pick<ThemedDeckCardDoc, "originalCardName" | "themedImagePrompt">,
-): Promise<{ generated: boolean; imageUrl: string | null }> => {
+const startDeckImageGeneration = (jobs: ImageGenerationJob[]): void => {
+  if (jobs.length === 0) {
+    return;
+  }
+
+  void runDeckImageGeneration(jobs).catch((error) => {
+    console.error("[themed-images] Background bulk generation failed.", {
+      deckId: jobs[0]?.deckId,
+      error,
+    });
+  });
+};
+
+const runDeckImageGeneration = async (jobs: ImageGenerationJob[]): Promise<void> => {
+  const parallelism = Math.min(IMAGE_GENERATION_CONCURRENCY_PER_DECK, jobs.length);
+  const pendingJobs = [...jobs];
+  const workers = Array.from({ length: parallelism }, async () => {
+    while (pendingJobs.length > 0) {
+      const nextJob = pendingJobs.shift();
+      if (!nextJob) {
+        return;
+      }
+
+      await runImageGeneration(nextJob);
+    }
+  });
+
+  await Promise.all(workers);
+};
+
+const startImageGeneration = (job: ImageGenerationJob): void => {
+  void runImageGeneration(job).catch((error) => {
+    console.error("[themed-images] Background generation failed.", {
+      deckId: job.deckId,
+      originalCardName: job.originalCardName,
+      error,
+    });
+  });
+};
+
+const runImageGeneration = async (job: ImageGenerationJob): Promise<void> => {
   try {
-    const imageUrl = await themedImageGenerator(card.themedImagePrompt ?? "");
+    const imageUrl = await themedImageGenerator(job.themedImagePrompt);
 
     await ThemedDeckCardsCollection.updateAsync(
-      { deckId, originalCardName: card.originalCardName },
+      { deckId: job.deckId, originalCardName: job.originalCardName },
       {
         $set: {
           themedGeneratedImageUrl: imageUrl,
@@ -193,23 +254,72 @@ const generateImageForCard = async (
         },
       },
     );
-
-    return { generated: true, imageUrl };
   } catch (error) {
-    await ThemedDeckCardsCollection.updateAsync(
-      { deckId, originalCardName: card.originalCardName },
+    await markImageFailed(job.deckId, job.originalCardName, getErrorMessage(error));
+  } finally {
+    await DecksCollection.updateAsync(
+      { _id: job.deckId },
       {
         $set: {
-          themedGeneratedImageStatus: "failed",
-          themedGeneratedImageError: getErrorMessage(error),
-          themedGeneratedImageUpdatedAt: new Date(),
           updatedAt: new Date(),
         },
       },
     );
-
-    return { generated: false, imageUrl: null };
   }
+};
+
+const markImageGenerating = async ({
+  deckId,
+  originalCardName,
+  themedName,
+  themedImagePrompt,
+}: {
+  deckId: string;
+  originalCardName: string;
+  themedName?: string;
+  themedImagePrompt?: string;
+}): Promise<boolean> => {
+  const setFields: Record<string, unknown> = {
+    themedGeneratedImageStatus: "generating",
+    themedGeneratedImageError: null,
+    themedGeneratedImageUpdatedAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  if (typeof themedName === "string") {
+    setFields.themedName = themedName;
+  }
+
+  if (typeof themedImagePrompt === "string") {
+    setFields.themedImagePrompt = themedImagePrompt;
+  }
+
+  const updatedCount = await ThemedDeckCardsCollection.updateAsync(
+    {
+      deckId,
+      originalCardName,
+      themedGeneratedImageStatus: { $ne: "generating" },
+    },
+    {
+      $set: setFields,
+    },
+  );
+
+  return updatedCount > 0;
+};
+
+const markImageFailed = async (deckId: string, originalCardName: string, message: string): Promise<void> => {
+  await ThemedDeckCardsCollection.updateAsync(
+    { deckId, originalCardName },
+    {
+      $set: {
+        themedGeneratedImageStatus: "failed",
+        themedGeneratedImageError: message,
+        themedGeneratedImageUpdatedAt: new Date(),
+        updatedAt: new Date(),
+      },
+    },
+  );
 };
 
 const shouldGenerateImage = (card: ThemedDeckCardDoc, forceRegenerate: boolean): boolean => {
