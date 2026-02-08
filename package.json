@@ -10,10 +10,10 @@
   "dependencies": {
     "@babel/runtime": "^7.23.5",
     "@swc/helpers": "^0.5.17",
+    "canvas": "^3.2.0",
     "meteor-node-stubs": "^1.2.12",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "sharp": "^0.32.6"
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@meteorjs/rspack": "^1.0.0",

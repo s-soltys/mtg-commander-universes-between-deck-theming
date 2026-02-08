@@ -37,45 +37,50 @@ interface CompositeGenerationJob {
   themedName: string;
 }
 
-interface SharpCreateInput {
-  create: {
-    width: number;
-    height: number;
-    channels: number;
-    background: {
-      r: number;
-      g: number;
-      b: number;
-      alpha: number;
-    };
-  };
-}
-
-interface SharpResizeInput {
+interface ImageLike {
   width: number;
   height: number;
-  fit: "cover";
-  position: "centre";
 }
 
-interface SharpCompositeInput {
-  input: Buffer;
-  left: number;
-  top: number;
-  blend?: TitleMaskBlendMode;
+interface TitleMaskCompositeOperationContext {
+  globalCompositeOperation: string;
 }
 
-interface SharpLike {
-  ensureAlpha(): SharpLike;
-  metadata(): Promise<{ width?: number; height?: number }>;
-  resize(input: SharpResizeInput): SharpLike;
-  composite(input: SharpCompositeInput[]): SharpLike;
-  png(): SharpLike;
-  toBuffer(): Promise<Buffer>;
+interface CanvasContextLike extends TitleMaskCompositeOperationContext {
+  save(): void;
+  restore(): void;
+  fillStyle: string;
+  strokeStyle: string;
+  lineWidth: number;
+  lineJoin: string;
+  miterLimit: number;
+  font: string;
+  textAlign: string;
+  textBaseline: string;
+  fillRect(x: number, y: number, width: number, height: number): void;
+  drawImage(image: ImageLike, ...args: number[]): void;
+  strokeText(text: string, x: number, y: number, maxWidth?: number): void;
+  fillText(text: string, x: number, y: number, maxWidth?: number): void;
 }
 
-type SharpFactory = (input: Buffer | SharpCreateInput) => SharpLike;
-type TitleMaskBlendMode = "luminosity" | "over";
+interface CanvasLike {
+  getContext(contextId: "2d"): CanvasContextLike | null;
+  toBuffer(mimeType?: "image/png"): Buffer;
+}
+
+interface CanvasModule {
+  createCanvas(width: number, height: number): CanvasLike;
+  loadImage(source: Buffer): Promise<ImageLike>;
+}
+
+interface CoverSourceRect {
+  sx: number;
+  sy: number;
+  width: number;
+  height: number;
+}
+
+type TitleMaskCompositeOperation = "luminosity" | "source-over";
 
 const STANDARD_CARD_ASPECT_RATIO = 488 / 680;
 const STANDARD_CARD_ASPECT_TOLERANCE = 0.03;
@@ -86,7 +91,7 @@ const STANDARD_TITLE_RECT: NormalizedRect = { x: 0.085, y: 0.050, width: 0.65, h
 const MTG_TITLE_FONT_FAMILY = "'Cinzel', 'Matrix Bold', 'Goudy Old Style', 'Palatino Linotype', 'Book Antiqua', serif";
 
 let themedCardComposer: ThemedCardComposer = async (input) => composeStandardCardImage(input);
-let cachedSharpFactory: SharpFactory | null = null;
+let cachedCanvasModule: CanvasModule | null = null;
 
 const validateGenerateCompositeInput = ({
   deckId,
@@ -275,17 +280,19 @@ export const composeStandardCardImage = async ({
   themedArtUrl,
   themedName,
 }: ComposeStandardCardImageInput): Promise<string> => {
-  const sharp = await loadSharpFactory();
-  const titleMaskBlendMode = getTitleMaskBlendMode(sharp);
+  const canvasModule = await loadCanvasModule();
   const baseCardBuffer = await loadImageBuffer(baseCardUrl, "base-card-image");
   const themedArtBuffer = await loadImageBuffer(themedArtUrl, "themed-art-image");
 
-  const baseImage = sharp(baseCardBuffer).ensureAlpha();
-  const metadata = await baseImage.metadata();
+  const [baseImage, themedArtImage] = await Promise.all([
+    canvasModule.loadImage(baseCardBuffer),
+    canvasModule.loadImage(themedArtBuffer),
+  ]);
 
-  const width = metadata.width ?? 0;
-  const height = metadata.height ?? 0;
-  if (width === 0 || height === 0) {
+  const width = Math.round(baseImage.width);
+  const height = Math.round(baseImage.height);
+
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
     throw new Error("unsupported-layout: base card image dimensions unavailable.");
   }
 
@@ -300,54 +307,126 @@ export const composeStandardCardImage = async ({
 
   const artRect = toPixelRect(STANDARD_ART_RECT, width, height);
   const titleRect = toPixelRect(STANDARD_TITLE_RECT, width, height);
-  const artLayerBuffer = await sharp(themedArtBuffer)
-    .resize({
-      width: artRect.width,
-      height: artRect.height,
-      fit: "cover",
-      position: "centre",
-    })
-    .png()
-    .toBuffer();
-  const titleMaskBuffer = await createTitleMaskBuffer(sharp, titleRect.width, titleRect.height);
-  const titleTextBuffer = await createTitleTextBuffer(sharp, themedName, titleRect.width, titleRect.height);
-  const composedBuffer = await baseImage
-    .composite([
-      {
-        input: artLayerBuffer,
-        left: artRect.left,
-        top: artRect.top,
-      },
-      {
-        input: titleMaskBuffer,
-        left: titleRect.left,
-        top: titleRect.top,
-        blend: titleMaskBlendMode,
-      },
-      {
-        input: titleTextBuffer,
-        left: titleRect.left,
-        top: titleRect.top,
-      },
-    ])
-    .png()
-    .toBuffer();
 
+  const canvas = canvasModule.createCanvas(width, height);
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    throw new Error("composite-renderer: failed to acquire 2d context.");
+  }
+
+  context.drawImage(baseImage, 0, 0, width, height);
+  drawImageCover(context, themedArtImage, artRect);
+
+  context.save();
+  context.globalCompositeOperation = resolveTitleMaskCompositeOperation(context);
+  context.fillStyle = "rgba(223, 209, 184, 1)";
+  context.fillRect(titleRect.left, titleRect.top, titleRect.width, titleRect.height);
+  context.restore();
+
+  drawTitleText(context, themedName, titleRect);
+
+  const composedBuffer = canvas.toBuffer("image/png");
   return `data:image/png;base64,${composedBuffer.toString("base64")}`;
 };
 
-const getTitleMaskBlendMode = (sharpFactory: unknown): TitleMaskBlendMode => {
-  const blendModes =
-    typeof sharpFactory === "function" || (sharpFactory && typeof sharpFactory === "object")
-      ? (sharpFactory as { blend?: Record<string, string> }).blend
-      : null;
+const resolveTitleMaskCompositeOperation = (
+  context: TitleMaskCompositeOperationContext,
+): TitleMaskCompositeOperation => {
+  const originalOperation = context.globalCompositeOperation;
+  let supportsLuminosity = false;
 
-  // sharp/libvips in this project does not support "luminosity"; use it only when available.
-  if (blendModes && typeof blendModes.luminosity === "string") {
-    return "luminosity";
+  try {
+    context.globalCompositeOperation = "luminosity";
+    supportsLuminosity = context.globalCompositeOperation === "luminosity";
+  } catch {
+    supportsLuminosity = false;
   }
 
-  return "over";
+  try {
+    context.globalCompositeOperation = originalOperation;
+  } catch {
+    // Ignore context restore failures and keep a safe fallback mode.
+  }
+
+  return supportsLuminosity ? "luminosity" : "source-over";
+};
+
+const drawImageCover = (context: CanvasContextLike, image: ImageLike, targetRect: PixelRect): void => {
+  const sourceRect = getCoverSourceRect(image.width, image.height, targetRect.width, targetRect.height);
+
+  context.drawImage(
+    image,
+    sourceRect.sx,
+    sourceRect.sy,
+    sourceRect.width,
+    sourceRect.height,
+    targetRect.left,
+    targetRect.top,
+    targetRect.width,
+    targetRect.height,
+  );
+};
+
+const getCoverSourceRect = (
+  sourceWidth: number,
+  sourceHeight: number,
+  targetWidth: number,
+  targetHeight: number,
+): CoverSourceRect => {
+  if (sourceWidth <= 0 || sourceHeight <= 0) {
+    throw new Error("unsupported-layout: themed art dimensions unavailable.");
+  }
+
+  if (targetWidth <= 0 || targetHeight <= 0) {
+    throw new Error("unsupported-layout: invalid cover target dimensions.");
+  }
+
+  const sourceAspect = sourceWidth / sourceHeight;
+  const targetAspect = targetWidth / targetHeight;
+
+  if (sourceAspect > targetAspect) {
+    const width = sourceHeight * targetAspect;
+    return {
+      sx: (sourceWidth - width) / 2,
+      sy: 0,
+      width,
+      height: sourceHeight,
+    };
+  }
+
+  const height = sourceWidth / targetAspect;
+  return {
+    sx: 0,
+    sy: (sourceHeight - height) / 2,
+    width: sourceWidth,
+    height,
+  };
+};
+
+const drawTitleText = (context: CanvasContextLike, themedName: string, rect: PixelRect): void => {
+  const normalizedTitle = themedName.trim();
+  if (normalizedTitle.length === 0) {
+    throw new Error("Themed card title is required.");
+  }
+
+  const fontSize = getTitleFontSize(rect.width, rect.height, normalizedTitle);
+  const strokeWidth = Math.max(1, Math.round(fontSize * 0.1));
+
+  context.save();
+  context.font = `700 ${fontSize}px ${MTG_TITLE_FONT_FAMILY}`;
+  context.textAlign = "left";
+  context.textBaseline = "middle";
+  context.strokeStyle = "#efe8d8";
+  context.fillStyle = "#1f1610";
+  context.lineWidth = strokeWidth;
+  context.lineJoin = "round";
+  context.miterLimit = 2;
+
+  const textY = rect.top + rect.height / 2;
+  context.strokeText(normalizedTitle, rect.left, textY, rect.width);
+  context.fillText(normalizedTitle, rect.left, textY, rect.width);
+  context.restore();
 };
 
 const toPixelRect = (rect: NormalizedRect, width: number, height: number): PixelRect => {
@@ -368,48 +447,6 @@ const toPixelRect = (rect: NormalizedRect, width: number, height: number): Pixel
   };
 };
 
-const createTitleMaskBuffer = async (sharp: SharpFactory, width: number, height: number): Promise<Buffer> =>
-  sharp({
-    create: {
-      width,
-      height,
-      channels: 4,
-      background: {
-        r: 223,
-        g: 209,
-        b: 184,
-        alpha: 1,
-      },
-    },
-  })
-    .png()
-    .toBuffer();
-
-const createTitleTextBuffer = async (
-  sharp: SharpFactory,
-  themedName: string,
-  width: number,
-  height: number,
-): Promise<Buffer> => {
-  const normalizedTitle = themedName.trim();
-  if (normalizedTitle.length === 0) {
-    throw new Error("Themed card title is required.");
-  }
-
-  const fontSize = getTitleFontSize(width, height, normalizedTitle);
-  const strokeWidth = Math.max(1, Math.round(fontSize * 0.1));
-  const escapedText = escapeXml(normalizedTitle);
-  const yCenter = height / 2;
-  const svg = [
-    `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">`,
-    "<rect width=\"100%\" height=\"100%\" fill=\"transparent\"/>",
-    `<text x="0" y="${yCenter}" dy="0.35em" text-anchor="start" fill="#1f1610" stroke="#efe8d8" stroke-width="${strokeWidth}" paint-order="stroke fill" font-size="${fontSize}" font-family="${MTG_TITLE_FONT_FAMILY}" font-weight="700" letter-spacing="0.6">${escapedText}</text>`,
-    "</svg>",
-  ].join("");
-
-  return sharp(Buffer.from(svg)).png().toBuffer();
-};
-
 const getTitleFontSize = (width: number, height: number, text: string): number => {
   const maxForHeight = Math.floor(height * 0.72);
   const estimatedFromLength = Math.floor((width * 0.86) / Math.max(1, text.length * 0.66));
@@ -418,99 +455,82 @@ const getTitleFontSize = (width: number, height: number, text: string): number =
 
 const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value));
 
-const escapeXml = (value: string): string =>
-  value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&apos;");
-
-const loadSharpFactory = async (): Promise<SharpFactory> => {
-  if (cachedSharpFactory) {
-    return cachedSharpFactory;
+const loadCanvasModule = async (): Promise<CanvasModule> => {
+  if (cachedCanvasModule) {
+    return cachedCanvasModule;
   }
 
   const resolutionErrors: string[] = [];
 
-  const fromNonWebpack = tryResolveSharpFactory(
+  const fromNonWebpack = tryResolveCanvasModule(
     (globalThis as { __non_webpack_require__?: (id: string) => unknown }).__non_webpack_require__,
-    "sharp",
+    "canvas",
     "__non_webpack_require__",
     resolutionErrors,
   );
   if (fromNonWebpack) {
-    cachedSharpFactory = fromNonWebpack;
-    return cachedSharpFactory;
+    cachedCanvasModule = fromNonWebpack;
+    return cachedCanvasModule;
   }
 
-  const fromModuleRequire = tryResolveSharpFactory(
+  const fromModuleRequire = tryResolveCanvasModule(
     typeof module !== "undefined" && typeof module.require === "function" ? module.require.bind(module) : undefined,
-    "sharp",
+    "canvas",
     "module.require",
     resolutionErrors,
   );
   if (fromModuleRequire) {
-    cachedSharpFactory = fromModuleRequire;
-    return cachedSharpFactory;
+    cachedCanvasModule = fromModuleRequire;
+    return cachedCanvasModule;
   }
 
-  const fromMainModule = tryResolveSharpFactory(
+  const fromMainModule = tryResolveCanvasModule(
     (process as NodeJS.Process & { mainModule?: { require?: (id: string) => unknown } }).mainModule?.require,
-    "sharp",
+    "canvas",
     "process.mainModule.require",
     resolutionErrors,
   );
   if (fromMainModule) {
-    cachedSharpFactory = fromMainModule;
-    return cachedSharpFactory;
+    cachedCanvasModule = fromMainModule;
+    return cachedCanvasModule;
   }
 
   const candidateRoots = getCandidateRootPaths();
 
   for (const rootPath of candidateRoots) {
-    const fromRootRequire = tryResolveSharpFactory(
-      createRequire(path.join(rootPath, "__sharp_loader__.cjs")).bind(null) as (id: string) => unknown,
-      "sharp",
+    const rootRequire = createRequire(path.join(rootPath, "__canvas_loader__.cjs"));
+
+    const fromRootRequire = tryResolveCanvasModule(
+      rootRequire.bind(null) as (id: string) => unknown,
+      "canvas",
       `createRequire(${rootPath})`,
       resolutionErrors,
     );
     if (fromRootRequire) {
-      cachedSharpFactory = fromRootRequire;
-      return cachedSharpFactory;
+      cachedCanvasModule = fromRootRequire;
+      return cachedCanvasModule;
     }
 
-    const fromRootNodeModules = tryResolveSharpFactory(
-      createRequire(path.join(rootPath, "__sharp_loader__.cjs")).bind(null) as (id: string) => unknown,
-      `${rootPath}/node_modules/sharp`,
-      `createRequire(${rootPath}) absolute-sharp`,
+    const fromRootNodeModules = tryResolveCanvasModule(
+      rootRequire.bind(null) as (id: string) => unknown,
+      `${rootPath}/node_modules/canvas`,
+      `createRequire(${rootPath}) absolute-canvas`,
       resolutionErrors,
     );
     if (fromRootNodeModules) {
-      cachedSharpFactory = fromRootNodeModules;
-      return cachedSharpFactory;
-    }
-
-    const fromRootEntry = tryResolveSharpFactory(
-      createRequire(path.join(rootPath, "__sharp_loader__.cjs")).bind(null) as (id: string) => unknown,
-      `${rootPath}/node_modules/sharp/lib/index.js`,
-      `createRequire(${rootPath}) absolute-sharp-entry`,
-      resolutionErrors,
-    );
-    if (fromRootEntry) {
-      cachedSharpFactory = fromRootEntry;
-      return cachedSharpFactory;
+      cachedCanvasModule = fromRootNodeModules;
+      return cachedCanvasModule;
     }
   }
 
   throw new Error(
     [
-      "sharp module is unavailable.",
+      "canvas module is unavailable.",
       `node=${process.version}`,
       `cwd=${process.cwd()}`,
       `attemptedRoots=${candidateRoots.join(", ")}`,
       `resolutionErrors=${resolutionErrors.slice(0, 8).join(" | ")}`,
-      "Install sharp in the app root and restart Meteor.",
+      "Install canvas in the app root and restart Meteor.",
     ].join(" "),
   );
 };
@@ -538,9 +558,27 @@ const getCandidateRootPaths = (): string[] => {
   return [...roots];
 };
 
-const getSharpFactoryExport = (value: unknown): SharpFactory | null => {
-  if (typeof value === "function") {
-    return value as SharpFactory;
+const toCanvasModule = (value: unknown): CanvasModule | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as {
+    createCanvas?: unknown;
+    loadImage?: unknown;
+  };
+
+  if (typeof candidate.createCanvas !== "function" || typeof candidate.loadImage !== "function") {
+    return null;
+  }
+
+  return candidate as unknown as CanvasModule;
+};
+
+const getCanvasModuleExport = (value: unknown): CanvasModule | null => {
+  const directModule = toCanvasModule(value);
+  if (directModule) {
+    return directModule;
   }
 
   if (!value || typeof value !== "object") {
@@ -548,19 +586,15 @@ const getSharpFactoryExport = (value: unknown): SharpFactory | null => {
   }
 
   const candidate = value as { default?: unknown };
-  if (typeof candidate.default === "function") {
-    return candidate.default as SharpFactory;
-  }
-
-  return null;
+  return toCanvasModule(candidate.default);
 };
 
-const tryResolveSharpFactory = (
+const tryResolveCanvasModule = (
   resolver: ((id: string) => unknown) | undefined,
   specifier: string,
   label: string,
   errors: string[],
-): SharpFactory | null => {
+): CanvasModule | null => {
   if (typeof resolver !== "function") {
     errors.push(`${label}: resolver missing`);
     return null;
@@ -568,11 +602,11 @@ const tryResolveSharpFactory = (
 
   try {
     const resolved = resolver(specifier);
-    const factory = getSharpFactoryExport(resolved);
-    if (!factory) {
-      errors.push(`${label}: export not callable`);
+    const canvasModule = getCanvasModuleExport(resolved);
+    if (!canvasModule) {
+      errors.push(`${label}: export missing createCanvas/loadImage`);
     }
-    return factory;
+    return canvasModule;
   } catch (error) {
     errors.push(`${label}: ${getUnknownErrorMessage(error)}`);
     return null;
@@ -646,5 +680,19 @@ export const __resetThemedCardComposerForTests = (): void => {
   themedCardComposer = composeStandardCardImage;
 };
 
-export const __getTitleMaskBlendModeForTests = (sharpFactory: unknown): TitleMaskBlendMode =>
-  getTitleMaskBlendMode(sharpFactory);
+export const __resolveTitleMaskCompositeOperationForTests = (
+  context: TitleMaskCompositeOperationContext,
+): TitleMaskCompositeOperation => resolveTitleMaskCompositeOperation(context);
+
+export const __getCoverSourceRectForTests = (
+  sourceWidth: number,
+  sourceHeight: number,
+  targetWidth: number,
+  targetHeight: number,
+): CoverSourceRect => getCoverSourceRect(sourceWidth, sourceHeight, targetWidth, targetHeight);
+
+export const __toPixelRectForTests = (rect: NormalizedRect, width: number, height: number): PixelRect =>
+  toPixelRect(rect, width, height);
+
+export const __getTitleFontSizeForTests = (width: number, height: number, text: string): number =>
+  getTitleFontSize(width, height, text);

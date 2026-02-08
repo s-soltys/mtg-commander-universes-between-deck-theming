@@ -52,6 +52,7 @@
 - Store composite outputs separately from generated themed art outputs.
 - v1 composite generation supports standard single-face MTG frame coordinates only and must fail clearly on unsupported layouts.
 - Deck details must expose asynchronous per-row "Create themed card" actions and render composite status transitions inline.
+- Composite rendering must use server-side Canvas (`node-canvas`) as the primary engine; title mask blending should prefer `luminosity` with explicit fallback when unavailable. Do not reintroduce `sharp` for composite generation unless explicitly approved.
 
 ## Navigation IA Rules
 - Keep deck list as the default landing page at `/`.

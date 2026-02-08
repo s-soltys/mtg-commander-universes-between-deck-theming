@@ -1,9 +1,12 @@
 import { strict as assert } from "node:assert";
 import { DeckCardsCollection, DecksCollection, ThemedDeckCardsCollection } from "/imports/api/decks";
 import {
-  __getTitleMaskBlendModeForTests,
+  __getCoverSourceRectForTests,
+  __getTitleFontSizeForTests,
   __resetThemedCardComposerForTests,
+  __resolveTitleMaskCompositeOperationForTests,
   __setThemedCardComposerForTests,
+  __toPixelRectForTests,
   generateThemedCardCompositeForCard,
 } from "/imports/api/decks/themedCardComposites";
 
@@ -233,26 +236,92 @@ describe("generateThemedCardCompositeForCard", function () {
   });
 });
 
-describe("title mask blend mode selection", function () {
-  it("falls back to over when luminosity is unavailable", function () {
-    const sharpFactoryWithoutLuminosity = Object.assign(() => null, {
-      blend: {
-        "over": "over",
-        overlay: "overlay",
-      },
-    });
+class CompositeOperationContextMock {
+  private currentOperation = "source-over";
 
-    assert.strictEqual(__getTitleMaskBlendModeForTests(sharpFactoryWithoutLuminosity), "over");
+  private readonly supportedOperations: Set<string>;
+
+  constructor(supportedOperations: string[]) {
+    this.supportedOperations = new Set(supportedOperations);
+  }
+
+  get globalCompositeOperation(): string {
+    return this.currentOperation;
+  }
+
+  set globalCompositeOperation(value: string) {
+    if (this.supportedOperations.has(value)) {
+      this.currentOperation = value;
+    }
+  }
+}
+
+describe("title mask composite operation selection", function () {
+  it("falls back to source-over when luminosity is unavailable", function () {
+    const context = new CompositeOperationContextMock(["source-over"]);
+
+    assert.strictEqual(__resolveTitleMaskCompositeOperationForTests(context), "source-over");
+    assert.strictEqual(context.globalCompositeOperation, "source-over");
   });
 
-  it("uses luminosity when the sharp factory reports support", function () {
-    const sharpFactoryWithLuminosity = Object.assign(() => null, {
-      blend: {
-        luminosity: "luminosity",
-        "over": "over",
-      },
-    });
+  it("uses luminosity when the canvas context reports support", function () {
+    const context = new CompositeOperationContextMock(["source-over", "luminosity"]);
 
-    assert.strictEqual(__getTitleMaskBlendModeForTests(sharpFactoryWithLuminosity), "luminosity");
+    assert.strictEqual(__resolveTitleMaskCompositeOperationForTests(context), "luminosity");
+    assert.strictEqual(context.globalCompositeOperation, "source-over");
+  });
+});
+
+describe("cover source rectangle calculation", function () {
+  it("center-crops a wide source image", function () {
+    const coverRect = __getCoverSourceRectForTests(1200, 600, 400, 400);
+
+    assert.deepStrictEqual(coverRect, {
+      sx: 300,
+      sy: 0,
+      width: 600,
+      height: 600,
+    });
+  });
+
+  it("center-crops a tall source image", function () {
+    const coverRect = __getCoverSourceRectForTests(600, 1200, 400, 400);
+
+    assert.deepStrictEqual(coverRect, {
+      sx: 0,
+      sy: 300,
+      width: 600,
+      height: 600,
+    });
+  });
+});
+
+describe("pixel rectangle conversion", function () {
+  it("converts normalized frame coordinates to pixel coordinates", function () {
+    const pixelRect = __toPixelRectForTests({ x: 0.1, y: 0.1, width: 0.4, height: 0.3 }, 500, 700);
+
+    assert.deepStrictEqual(pixelRect, {
+      left: 50,
+      top: 70,
+      width: 200,
+      height: 210,
+    });
+  });
+
+  it("throws when normalized coordinates produce an invalid rectangle", function () {
+    assert.throws(
+      () => __toPixelRectForTests({ x: 0.1, y: 0.1, width: 0, height: 0.3 }, 500, 700),
+      /unsupported-layout: invalid target frame coordinates\./,
+    );
+  });
+});
+
+describe("title font sizing", function () {
+  it("clamps font size to frame height maximum", function () {
+    assert.strictEqual(__getTitleFontSizeForTests(300, 40, "A"), 28);
+  });
+
+  it("clamps font size to minimum for very long names", function () {
+    assert.strictEqual(__getTitleFontSizeForTests(120, 30, "A".repeat(200)), 15);
   });
 });
