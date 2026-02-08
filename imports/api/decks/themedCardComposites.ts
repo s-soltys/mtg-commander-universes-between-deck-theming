@@ -62,6 +62,7 @@ interface SharpCompositeInput {
   input: Buffer;
   left: number;
   top: number;
+  blend?: TitleMaskBlendMode;
 }
 
 interface SharpLike {
@@ -74,6 +75,7 @@ interface SharpLike {
 }
 
 type SharpFactory = (input: Buffer | SharpCreateInput) => SharpLike;
+type TitleMaskBlendMode = "luminosity" | "over";
 
 const STANDARD_CARD_ASPECT_RATIO = 488 / 680;
 const STANDARD_CARD_ASPECT_TOLERANCE = 0.03;
@@ -81,6 +83,7 @@ const MIN_STANDARD_CARD_WIDTH = 320;
 const MIN_STANDARD_CARD_HEIGHT = 450;
 const STANDARD_ART_RECT: NormalizedRect = { x: 0.080, y: 0.114, width: 0.842, height: 0.440 };
 const STANDARD_TITLE_RECT: NormalizedRect = { x: 0.085, y: 0.050, width: 0.65, height: 0.048 };
+const MTG_TITLE_FONT_FAMILY = "'Cinzel', 'Matrix Bold', 'Goudy Old Style', 'Palatino Linotype', 'Book Antiqua', serif";
 
 let themedCardComposer: ThemedCardComposer = async (input) => composeStandardCardImage(input);
 let cachedSharpFactory: SharpFactory | null = null;
@@ -273,6 +276,7 @@ export const composeStandardCardImage = async ({
   themedName,
 }: ComposeStandardCardImageInput): Promise<string> => {
   const sharp = await loadSharpFactory();
+  const titleMaskBlendMode = getTitleMaskBlendMode(sharp);
   const baseCardBuffer = await loadImageBuffer(baseCardUrl, "base-card-image");
   const themedArtBuffer = await loadImageBuffer(themedArtUrl, "themed-art-image");
 
@@ -318,6 +322,7 @@ export const composeStandardCardImage = async ({
         input: titleMaskBuffer,
         left: titleRect.left,
         top: titleRect.top,
+        blend: titleMaskBlendMode,
       },
       {
         input: titleTextBuffer,
@@ -329,6 +334,20 @@ export const composeStandardCardImage = async ({
     .toBuffer();
 
   return `data:image/png;base64,${composedBuffer.toString("base64")}`;
+};
+
+const getTitleMaskBlendMode = (sharpFactory: unknown): TitleMaskBlendMode => {
+  const blendModes =
+    typeof sharpFactory === "function" || (sharpFactory && typeof sharpFactory === "object")
+      ? (sharpFactory as { blend?: Record<string, string> }).blend
+      : null;
+
+  // sharp/libvips in this project does not support "luminosity"; use it only when available.
+  if (blendModes && typeof blendModes.luminosity === "string") {
+    return "luminosity";
+  }
+
+  return "over";
 };
 
 const toPixelRect = (rect: NormalizedRect, width: number, height: number): PixelRect => {
@@ -384,7 +403,7 @@ const createTitleTextBuffer = async (
   const svg = [
     `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">`,
     "<rect width=\"100%\" height=\"100%\" fill=\"transparent\"/>",
-    `<text x="0" y="${yCenter}" dy="0.35em" text-anchor="start" fill="#1f1610" stroke="#efe8d8" stroke-width="${strokeWidth}" paint-order="stroke fill" font-size="${fontSize}" font-family="'Times New Roman', Georgia, serif" font-weight="700" letter-spacing="0.6">${escapedText}</text>`,
+    `<text x="0" y="${yCenter}" dy="0.35em" text-anchor="start" fill="#1f1610" stroke="#efe8d8" stroke-width="${strokeWidth}" paint-order="stroke fill" font-size="${fontSize}" font-family="${MTG_TITLE_FONT_FAMILY}" font-weight="700" letter-spacing="0.6">${escapedText}</text>`,
     "</svg>",
   ].join("");
 
@@ -626,3 +645,6 @@ export const __setThemedCardComposerForTests = (composer: ThemedCardComposer): v
 export const __resetThemedCardComposerForTests = (): void => {
   themedCardComposer = composeStandardCardImage;
 };
+
+export const __getTitleMaskBlendModeForTests = (sharpFactory: unknown): TitleMaskBlendMode =>
+  getTitleMaskBlendMode(sharpFactory);

@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import { DeckCardsCollection, DecksCollection, ThemedDeckCardsCollection } from "/imports/api/decks";
 import {
+  __getTitleMaskBlendModeForTests,
   __resetThemedCardComposerForTests,
   __setThemedCardComposerForTests,
   generateThemedCardCompositeForCard,
@@ -229,5 +230,29 @@ describe("generateThemedCardCompositeForCard", function () {
     });
     assert.strictEqual(card?.themedCompositeImageStatus, "failed");
     assert.ok((card?.themedCompositeImageError ?? "").includes("unsupported-layout"));
+  });
+});
+
+describe("title mask blend mode selection", function () {
+  it("falls back to over when luminosity is unavailable", function () {
+    const sharpFactoryWithoutLuminosity = Object.assign(() => null, {
+      blend: {
+        "over": "over",
+        overlay: "overlay",
+      },
+    });
+
+    assert.strictEqual(__getTitleMaskBlendModeForTests(sharpFactoryWithoutLuminosity), "over");
+  });
+
+  it("uses luminosity when the sharp factory reports support", function () {
+    const sharpFactoryWithLuminosity = Object.assign(() => null, {
+      blend: {
+        luminosity: "luminosity",
+        "over": "over",
+      },
+    });
+
+    assert.strictEqual(__getTitleMaskBlendModeForTests(sharpFactoryWithLuminosity), "luminosity");
   });
 });
