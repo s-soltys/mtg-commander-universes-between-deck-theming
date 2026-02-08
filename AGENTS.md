@@ -26,6 +26,11 @@
 - Test at the correct layer: unit tests for pure logic, integration tests for Methods/publications and data boundaries, runtime assertions for client/server differences.
 - Keep tests deterministic and isolated. Do not rely on hidden cross-test state.
 
+## MTG Data Integration Rules
+- Prefer Scryfall API for card metadata and image URLs.
+- Treat deck parsing as deterministic pure logic and cover it with unit tests.
+- Keep third-party API calls server-only and resilient to partial lookup failures.
+
 ## Rule Maintenance
 - Treat user direction changes and new perspectives as rule-update triggers.
 - When the user provides a new direction or an interesting perspective, propose a concrete refinement to `AGENTS.md` (and any related rules file) in the same thread.

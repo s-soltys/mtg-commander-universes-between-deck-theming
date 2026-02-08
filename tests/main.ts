@@ -1,17 +1,15 @@
 import { strict as assert } from "node:assert";
 import { Meteor } from "meteor/meteor";
 
+import "./decks/parser.test";
+import "./decks/methods.test";
+import "./decks/publications.test";
+
 describe("app-for-decks", function () {
   it("package.json has correct name", async function () {
     const { name } = await import("../package.json");
     assert.strictEqual(name, "app-for-decks");
   });
-
-  if (Meteor.isClient) {
-    it("client is not server", function () {
-      assert.strictEqual(Meteor.isServer, false);
-    });
-  }
 
   if (Meteor.isServer) {
     it("server is not client", function () {

@@ -1,10 +1,19 @@
 declare module "meteor/meteor" {
+  export class MeteorError extends Error {
+    error: string;
+    reason?: string;
+    details?: string;
+    constructor(error: string, reason?: string, details?: string);
+  }
+
   export const Meteor: {
     isClient: boolean;
     isServer: boolean;
     startup: (fn: () => void | Promise<void>) => void;
     publish: (name: string, handler: (...args: any[]) => any) => void;
     methods: (methods: Record<string, (...args: any[]) => any>) => void;
+    callAsync: <TReturn = unknown>(name: string, ...args: any[]) => Promise<TReturn>;
+    Error: typeof MeteorError;
   };
 }
 
@@ -17,7 +26,7 @@ declare module "meteor/random" {
 declare module "meteor/mongo" {
   export namespace Mongo {
     interface Cursor<T> {
-      fetch(): T[];
+      fetch(): Promise<T[]>;
       countAsync(): Promise<number>;
     }
 
@@ -25,6 +34,8 @@ declare module "meteor/mongo" {
       constructor(name: string);
       find(selector?: any, options?: any): Cursor<T>;
       insertAsync(doc: T): Promise<string>;
+      removeAsync(selector?: any): Promise<number>;
+      findOneAsync(selector?: any, options?: any): Promise<T | undefined>;
     }
   }
 }
