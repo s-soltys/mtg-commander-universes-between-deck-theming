@@ -79,8 +79,8 @@ const STANDARD_CARD_ASPECT_RATIO = 488 / 680;
 const STANDARD_CARD_ASPECT_TOLERANCE = 0.03;
 const MIN_STANDARD_CARD_WIDTH = 320;
 const MIN_STANDARD_CARD_HEIGHT = 450;
-const STANDARD_ART_RECT: NormalizedRect = { x: 0.080, y: 0.114, width: 0.840, height: 0.446 };
-const STANDARD_TITLE_RECT: NormalizedRect = { x: 0.092, y: 0.043, width: 0.816, height: 0.051 };
+const STANDARD_ART_RECT: NormalizedRect = { x: 0.080, y: 0.114, width: 0.842, height: 0.440 };
+const STANDARD_TITLE_RECT: NormalizedRect = { x: 0.085, y: 0.050, width: 0.65, height: 0.048 };
 
 let themedCardComposer: ThemedCardComposer = async (input) => composeStandardCardImage(input);
 let cachedSharpFactory: SharpFactory | null = null;
