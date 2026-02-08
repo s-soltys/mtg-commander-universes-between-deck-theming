@@ -6,6 +6,9 @@ export interface ThemedCardDetails {
   themedImageUrl: string | null;
   themedImageStatus: "idle" | "generated" | "failed";
   themedImageError: string | null;
+  themedCompositeImageUrl: string | null;
+  themedCompositeImageStatus: "idle" | "generating" | "generated" | "failed";
+  themedCompositeImageError: string | null;
 }
 
 export const buildThemedDetailsByOriginalCard = (
@@ -33,6 +36,9 @@ export const buildThemedDetailsByOriginalCard = (
       themedImageUrl: themedCard.themedGeneratedImageUrl ?? null,
       themedImageStatus: themedCard.themedGeneratedImageStatus ?? "idle",
       themedImageError: themedCard.themedGeneratedImageError ?? null,
+      themedCompositeImageUrl: themedCard.themedCompositeImageUrl ?? null,
+      themedCompositeImageStatus: themedCard.themedCompositeImageStatus ?? "idle",
+      themedCompositeImageError: themedCard.themedCompositeImageError ?? null,
     });
   }
 

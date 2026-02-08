@@ -12,6 +12,7 @@ import type {
   DeckCardDoc,
   DeckCopyResult,
   DeckDoc,
+  DeckThemeCardCompositeGenerateForCardResult,
   DeckThemeImageGenerateForCardResult,
   DeckThemeStartResult,
   ThemedDeckCardDoc,
@@ -55,6 +56,8 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
   const [isGeneratingImage, setIsGeneratingImage] = React.useState<boolean>(false);
   const [imageGenerationError, setImageGenerationError] = React.useState<string | null>(null);
   const [imageGenerationSummary, setImageGenerationSummary] = React.useState<string | null>(null);
+  const [compositeGenerationError, setCompositeGenerationError] = React.useState<string | null>(null);
+  const [compositeGenerationSummary, setCompositeGenerationSummary] = React.useState<string | null>(null);
 
   const isLoading = isDeckLoading() || isCardsLoading() || isThemedCardsLoading();
   const deck = decks[0];
@@ -213,6 +216,40 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
     }
   };
 
+  const handleGenerateCompositeForCard = async (originalCardName: string) => {
+    const themedCard = themedCardsByOriginalName.get(originalCardName);
+    if (!themedCard || !themedCard.themedName) {
+      return;
+    }
+
+    setCompositeGenerationError(null);
+    setCompositeGenerationSummary(null);
+
+    try {
+      const result = await Meteor.callAsync<DeckThemeCardCompositeGenerateForCardResult>(
+        DeckMethodNames.generateThemedCardCompositeForCard,
+        {
+          deckId,
+          originalCardName,
+          themedName: themedCard.themedName,
+          forceRegenerate: true,
+        },
+      );
+
+      if (result.started) {
+        setCompositeGenerationSummary(`Started themed card generation for ${result.originalCardName}.`);
+      } else {
+        setCompositeGenerationSummary(`Themed card generation skipped for ${result.originalCardName}.`);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.trim().length > 0) {
+        setCompositeGenerationError(error.message);
+      } else {
+        setCompositeGenerationError(`Failed to start themed card generation for ${originalCardName}.`);
+      }
+    }
+  };
+
   return (
     <section className="space-y-4">
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
@@ -270,6 +307,18 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
             Image generation failed: {imageGenerationError}
           </div>
         ) : null}
+
+        {compositeGenerationSummary ? (
+          <div className="mt-4 rounded-lg border border-blue-300 bg-blue-50 p-3 text-sm text-blue-800">
+            {compositeGenerationSummary}
+          </div>
+        ) : null}
+
+        {compositeGenerationError ? (
+          <div className="mt-4 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+            Themed card generation failed: {compositeGenerationError}
+          </div>
+        ) : null}
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 md:p-6">
@@ -309,13 +358,26 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
             const themedCard = themedCardsByOriginalName.get(card.name);
             const canGenerateThemedImage =
               deck.themingStatus === "completed" && themedCard?.status === "generated";
+            const hasGeneratedThemedArt =
+              themedCard?.status === "generated" &&
+              themedCard?.themedGeneratedImageStatus === "generated" &&
+              typeof themedCard.themedGeneratedImageUrl === "string" &&
+              themedCard.themedGeneratedImageUrl.length > 0;
+            const isCompositeGenerating = themedCard?.themedCompositeImageStatus === "generating";
+            const canGenerateThemedCardComposite = hasGeneratedThemedArt && !isCompositeGenerating;
 
             return (
               <DeckCardRow
                 card={card}
                 canGenerateThemedImage={canGenerateThemedImage}
+                canGenerateThemedCard={canGenerateThemedCardComposite}
                 key={card._id ?? `${card.name}-${card.quantity}`}
                 onGenerateThemedImage={() => void handleGenerateImageForCard(card.name)}
+                onGenerateThemedCard={() => void handleGenerateCompositeForCard(card.name)}
+                showGenerateThemedCardButton={hasGeneratedThemedArt}
+                themedCompositeImageError={themedDetails?.themedCompositeImageError ?? null}
+                themedCompositeImageStatus={themedDetails?.themedCompositeImageStatus ?? "idle"}
+                themedCompositeImageUrl={themedDetails?.themedCompositeImageUrl ?? null}
                 themedDescription={themedDetails?.themedDescription ?? null}
                 themedImageError={themedDetails?.themedImageError ?? null}
                 themedImageStatus={themedDetails?.themedImageStatus ?? "idle"}

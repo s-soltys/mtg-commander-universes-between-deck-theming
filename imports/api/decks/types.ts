@@ -83,6 +83,7 @@ export interface ResolvedCardImage {
 
 export type ThemedDeckCardStatus = "pending" | "generated" | "failed" | "skipped";
 export type ThemedDeckCardImageStatus = "idle" | "generated" | "failed";
+export type ThemedDeckCardCompositeStatus = "idle" | "generating" | "generated" | "failed";
 
 export interface ThemedDeckCardDoc {
   _id?: string;
@@ -99,6 +100,10 @@ export interface ThemedDeckCardDoc {
   themedGeneratedImageStatus?: ThemedDeckCardImageStatus;
   themedGeneratedImageError?: string | null;
   themedGeneratedImageUpdatedAt?: Date | null;
+  themedCompositeImageUrl?: string | null;
+  themedCompositeImageStatus?: ThemedDeckCardCompositeStatus;
+  themedCompositeImageError?: string | null;
+  themedCompositeImageUpdatedAt?: Date | null;
   constraintsApplied: string[];
   errorMessage: string | null;
   createdAt: Date;
@@ -148,6 +153,19 @@ export interface DeckThemeImageGenerateForCardResult {
   originalCardName: string;
   generated: boolean;
   imageUrl: string | null;
+}
+
+export interface DeckThemeCardCompositeGenerateForCardInput {
+  deckId: string;
+  originalCardName: string;
+  themedName: string;
+  forceRegenerate: boolean;
+}
+
+export interface DeckThemeCardCompositeGenerateForCardResult {
+  deckId: string;
+  originalCardName: string;
+  started: boolean;
 }
 
 export interface AppSettingsDoc {

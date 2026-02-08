@@ -4,10 +4,13 @@ import { parseDecklist } from "./parser";
 import { resolveCardFromScryfall } from "./scryfall";
 import { startDeckTheming } from "./theming";
 import { generateDeckThemedImages, generateThemedImageForCard } from "./themedImages";
+import { generateThemedCardCompositeForCard } from "./themedCardComposites";
 import { clearOpenAIKey, setOpenAIKey } from "./appSettings";
 import type {
   AppSettingsSetOpenAIKeyInput,
   AppSettingsSetOpenAIKeyResult,
+  DeckThemeCardCompositeGenerateForCardInput,
+  DeckThemeCardCompositeGenerateForCardResult,
   DeckCopyInput,
   DeckCopyResult,
   AppSettingsClearOpenAIKeyResult,
@@ -115,6 +118,10 @@ export const generateThemedImageForCardMethod = async (
   input: DeckThemeImageGenerateForCardInput,
 ): Promise<DeckThemeImageGenerateForCardResult> => generateThemedImageForCard(input);
 
+export const generateThemedCardCompositeForCardMethod = async (
+  input: DeckThemeCardCompositeGenerateForCardInput,
+): Promise<DeckThemeCardCompositeGenerateForCardResult> => generateThemedCardCompositeForCard(input);
+
 export const copyDeck = async ({ sourceDeckId, title }: DeckCopyInput): Promise<DeckCopyResult> => {
   validateDeckCopyInput({ sourceDeckId, title });
 
@@ -180,6 +187,7 @@ export const registerDeckMethods = (): void => {
     "decks.startTheming": startDeckThemingMethod,
     "decks.generateThemedImages": generateDeckThemedImagesMethod,
     "decks.generateThemedImageForCard": generateThemedImageForCardMethod,
+    "decks.generateThemedCardCompositeForCard": generateThemedCardCompositeForCardMethod,
     "appSettings.setOpenAIKey": (input: AppSettingsSetOpenAIKeyInput): Promise<AppSettingsSetOpenAIKeyResult> =>
       setOpenAIKey(input),
     "appSettings.clearOpenAIKey": (): Promise<AppSettingsClearOpenAIKeyResult> => clearOpenAIKey(),

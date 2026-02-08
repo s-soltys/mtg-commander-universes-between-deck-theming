@@ -12,6 +12,8 @@ export type {
   DeckCreateResult,
   DeckDoc,
   DeckThemeImagesGenerateInput,
+  DeckThemeCardCompositeGenerateForCardInput,
+  DeckThemeCardCompositeGenerateForCardResult,
   DeckThemeImageGenerateForCardInput,
   DeckThemeImageGenerateForCardResult,
   DeckThemeImagesGenerateResult,
@@ -21,6 +23,7 @@ export type {
   ParsedDecklist,
   ResolvedCardImage,
   ScryfallCardDetails,
+  ThemedDeckCardCompositeStatus,
   ThemedDeckCardDoc,
   ThemedDeckCardGeneratedPayload,
 } from "./types";
@@ -40,6 +43,7 @@ export const DeckMethodNames = {
   startTheming: "decks.startTheming",
   generateThemedImages: "decks.generateThemedImages",
   generateThemedImageForCard: "decks.generateThemedImageForCard",
+  generateThemedCardCompositeForCard: "decks.generateThemedCardCompositeForCard",
   setOpenAIKey: "appSettings.setOpenAIKey",
   clearOpenAIKey: "appSettings.clearOpenAIKey",
 } as const;

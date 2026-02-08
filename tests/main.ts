@@ -9,6 +9,10 @@ import "./decks/themedNames.test";
 import "./decks/theming.test";
 import "./decks/themedImages.test";
 
+if (Meteor.isServer) {
+  require("./decks/themedCardComposites.test");
+}
+
 describe("app-for-decks", function () {
   it("package.json has correct name", async function () {
     const { name } = await import("../package.json");

@@ -45,6 +45,13 @@
 - Deck details must expose per-card "Generate Image" actions in decklist rows and render generated themed art inline in those rows.
 - Per-card image generation must open a confirmation/edit dialog that allows changing themed card title and image prompt before triggering generation.
 
+## Themed Card Composite Rules
+- Themed card composite generation must run server-side only.
+- Composite generation must merge original Scryfall card frame image + generated themed art + themed card title into a final card render.
+- Store composite outputs separately from generated themed art outputs.
+- v1 composite generation supports standard single-face MTG frame coordinates only and must fail clearly on unsupported layouts.
+- Deck details must expose asynchronous per-row "Create themed card" actions and render composite status transitions inline.
+
 ## Navigation IA Rules
 - Keep deck list as the default landing page at `/`.
 - Keep deck creation on a dedicated `/create` route.
@@ -61,7 +68,7 @@
 
 ## Decklist Presentation Rules
 - When a deck has completed theming, each decklist card row must show themed card name alongside the original card name.
-- Decklist rows should render as a two-column card layout: original name + original art on the left, themed name + themed description on the right.
+- Decklist rows should render as a three-column card layout: original name + original art, themed name + themed description + themed art, and final themed card render/status/actions.
 - Do not render a separate themed section when themed details are already shown inline in the decklist rows.
 - In deck details, render theme status/details and theme/re-theme action in a dedicated top card above the decklist card.
 

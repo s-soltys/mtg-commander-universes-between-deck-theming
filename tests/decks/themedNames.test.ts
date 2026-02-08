@@ -64,6 +64,9 @@ describe("buildThemedDetailsByOriginalCard", function () {
       themedImageUrl: null,
       themedImageStatus: "idle",
       themedImageError: null,
+      themedCompositeImageUrl: null,
+      themedCompositeImageStatus: "idle",
+      themedCompositeImageError: null,
     });
     assert.deepStrictEqual(result.get("Plains"), {
       themedName: "Plains",
@@ -71,6 +74,9 @@ describe("buildThemedDetailsByOriginalCard", function () {
       themedImageUrl: null,
       themedImageStatus: "idle",
       themedImageError: null,
+      themedCompositeImageUrl: null,
+      themedCompositeImageStatus: "idle",
+      themedCompositeImageError: null,
     });
     assert.strictEqual(result.has("Arcane Signet"), false);
   });
