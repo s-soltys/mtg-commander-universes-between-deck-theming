@@ -137,7 +137,7 @@ export const generateThemedCardImageWithOpenAI = async (prompt: string): Promise
     body: JSON.stringify({
       model: DEFAULT_IMAGE_MODEL,
       prompt,
-      size: "1024x1024",
+      size: "940x680",
     }),
   });
 
