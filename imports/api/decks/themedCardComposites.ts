@@ -79,7 +79,7 @@ const STANDARD_CARD_ASPECT_RATIO = 488 / 680;
 const STANDARD_CARD_ASPECT_TOLERANCE = 0.03;
 const MIN_STANDARD_CARD_WIDTH = 320;
 const MIN_STANDARD_CARD_HEIGHT = 450;
-const STANDARD_ART_RECT: NormalizedRect = { x: 0.086, y: 0.126, width: 0.828, height: 0.436 };
+const STANDARD_ART_RECT: NormalizedRect = { x: 0.080, y: 0.114, width: 0.840, height: 0.446 };
 const STANDARD_TITLE_RECT: NormalizedRect = { x: 0.092, y: 0.043, width: 0.816, height: 0.051 };
 
 let themedCardComposer: ThemedCardComposer = async (input) => composeStandardCardImage(input);
