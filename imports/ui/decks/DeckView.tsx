@@ -48,9 +48,13 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
   const [isCopying, setIsCopying] = React.useState<boolean>(false);
   const [copyErrorMessage, setCopyErrorMessage] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState<boolean>(false);
+  const [isImageModalOpen, setIsImageModalOpen] = React.useState<boolean>(false);
+  const [imageModalCardName, setImageModalCardName] = React.useState<string>("");
+  const [imageModalThemedName, setImageModalThemedName] = React.useState<string>("");
+  const [imageModalPrompt, setImageModalPrompt] = React.useState<string>("");
+  const [isGeneratingImage, setIsGeneratingImage] = React.useState<boolean>(false);
   const [imageGenerationError, setImageGenerationError] = React.useState<string | null>(null);
   const [imageGenerationSummary, setImageGenerationSummary] = React.useState<string | null>(null);
-  const [generatingImageCardNames, setGeneratingImageCardNames] = React.useState<string[]>([]);
 
   const isLoading = isDeckLoading() || isCardsLoading() || isThemedCardsLoading();
   const deck = decks[0];
@@ -160,17 +164,35 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
   };
 
   const handleGenerateImageForCard = async (originalCardName: string) => {
+    const themedCard = themedCardsByOriginalName.get(originalCardName);
+    if (!themedCard) {
+      return;
+    }
+
     setImageGenerationError(null);
     setImageGenerationSummary(null);
-    setGeneratingImageCardNames((previous) => [...previous, originalCardName]);
+    setImageModalCardName(originalCardName);
+    setImageModalThemedName(themedCard.themedName ?? originalCardName);
+    setImageModalPrompt(themedCard.themedImagePrompt ?? "");
+    setIsImageModalOpen(true);
+  };
+
+  const handleGenerateImageSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    setImageGenerationError(null);
+    setImageGenerationSummary(null);
+    setIsGeneratingImage(true);
 
     try {
       const result = await Meteor.callAsync<DeckThemeImageGenerateForCardResult>(
         DeckMethodNames.generateThemedImageForCard,
         {
           deckId,
-          originalCardName,
-          forceRegenerate: false,
+          originalCardName: imageModalCardName,
+          themedName: imageModalThemedName,
+          themedImagePrompt: imageModalPrompt,
+          forceRegenerate: true,
         },
       );
 
@@ -179,14 +201,15 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
           ? `Generated image for ${result.originalCardName}.`
           : `Skipped image generation for ${result.originalCardName}.`,
       );
+      setIsImageModalOpen(false);
     } catch (error) {
       if (error instanceof Error && error.message.trim().length > 0) {
         setImageGenerationError(error.message);
       } else {
-        setImageGenerationError(`Failed to generate image for ${originalCardName}.`);
+        setImageGenerationError(`Failed to generate image for ${imageModalCardName}.`);
       }
     } finally {
-      setGeneratingImageCardNames((previous) => previous.filter((name) => name !== originalCardName));
+      setIsGeneratingImage(false);
     }
   };
 
@@ -285,16 +308,12 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
             const themedDetails = themedDetailsByOriginalCard.get(card.name);
             const themedCard = themedCardsByOriginalName.get(card.name);
             const canGenerateThemedImage =
-              deck.themingStatus === "completed" &&
-              themedCard?.status === "generated" &&
-              Boolean(themedCard.themedImagePrompt?.trim());
-            const isGeneratingThemedImage = generatingImageCardNames.includes(card.name);
+              deck.themingStatus === "completed" && themedCard?.status === "generated";
 
             return (
               <DeckCardRow
                 card={card}
                 canGenerateThemedImage={canGenerateThemedImage}
-                isGeneratingThemedImage={isGeneratingThemedImage}
                 key={card._id ?? `${card.name}-${card.quantity}`}
                 onGenerateThemedImage={() => void handleGenerateImageForCard(card.name)}
                 themedDescription={themedDetails?.themedDescription ?? null}
@@ -416,6 +435,60 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
                   type="submit"
                 >
                   {isCopying ? "Copying..." : "Copy decklist"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {isImageModalOpen ? (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 px-4">
+          <div className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-5 shadow-lg md:p-6">
+            <h3 className="text-lg font-semibold text-slate-900">Generate image</h3>
+            <p className="mt-1 text-sm text-slate-600">Edit themed card title and prompt before generating.</p>
+
+            <form className="mt-4 space-y-4" onSubmit={handleGenerateImageSubmit}>
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-slate-700">Themed card title</span>
+                <input
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-red-500/40 transition focus:ring"
+                  onChange={(event) => setImageModalThemedName(event.target.value)}
+                  required
+                  type="text"
+                  value={imageModalThemedName}
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-slate-700">Image prompt</span>
+                <textarea
+                  className="h-28 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none ring-red-500/40 transition focus:ring"
+                  onChange={(event) => setImageModalPrompt(event.target.value)}
+                  required
+                  value={imageModalPrompt}
+                />
+              </label>
+
+              {imageGenerationError ? <p className="text-sm text-red-600">{imageGenerationError}</p> : null}
+
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
+                  onClick={() => {
+                    setImageGenerationError(null);
+                    setIsImageModalOpen(false);
+                  }}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="inline-flex cursor-pointer items-center rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isGeneratingImage || imageModalThemedName.trim().length === 0 || imageModalPrompt.trim().length === 0}
+                  type="submit"
+                >
+                  {isGeneratingImage ? "Generating..." : "Generate image"}
                 </button>
               </div>
             </form>

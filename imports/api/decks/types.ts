@@ -138,6 +138,8 @@ export interface DeckThemeImagesGenerateResult {
 export interface DeckThemeImageGenerateForCardInput {
   deckId: string;
   originalCardName: string;
+  themedName: string;
+  themedImagePrompt: string;
   forceRegenerate: boolean;
 }
 

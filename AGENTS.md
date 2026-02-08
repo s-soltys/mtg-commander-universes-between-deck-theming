@@ -43,6 +43,7 @@
 - Themed image generation must run server-side only and only after deck theming is completed.
 - Generate themed images from stored themed card prompts on a per-card basis and persist results on themed card records.
 - Deck details must expose per-card "Generate Image" actions in decklist rows and render generated themed art inline in those rows.
+- Per-card image generation must open a confirmation/edit dialog that allows changing themed card title and image prompt before triggering generation.
 
 ## Navigation IA Rules
 - Keep deck list as the default landing page at `/`.

@@ -26,6 +26,8 @@ const validateGenerateImagesInput = ({ deckId, forceRegenerate }: DeckThemeImage
 const validateGenerateSingleImageInput = ({
   deckId,
   originalCardName,
+  themedName,
+  themedImagePrompt,
   forceRegenerate,
 }: DeckThemeImageGenerateForCardInput): void => {
   if (typeof deckId !== "string" || deckId.trim().length === 0) {
@@ -34,6 +36,14 @@ const validateGenerateSingleImageInput = ({
 
   if (typeof originalCardName !== "string" || originalCardName.trim().length === 0) {
     throw new Meteor.Error("invalid-card-name", "Original card name is required.");
+  }
+
+  if (typeof themedName !== "string" || themedName.trim().length === 0) {
+    throw new Meteor.Error("invalid-themed-name", "Themed card title is required.");
+  }
+
+  if (typeof themedImagePrompt !== "string" || themedImagePrompt.trim().length === 0) {
+    throw new Meteor.Error("invalid-image-prompt", "Image prompt is required.");
   }
 
   if (typeof forceRegenerate !== "boolean") {
@@ -100,6 +110,8 @@ export const generateThemedImageForCard = async (
 
   const deckId = input.deckId.trim();
   const originalCardName = input.originalCardName.trim();
+  const themedName = input.themedName.trim();
+  const themedImagePrompt = input.themedImagePrompt.trim();
   const deck = await DecksCollection.findOneAsync({ _id: deckId });
   if (!deck) {
     throw new Meteor.Error("deck-not-found", "Deck not found.");
@@ -114,16 +126,33 @@ export const generateThemedImageForCard = async (
     throw new Meteor.Error("themed-card-not-found", "Themed card not found.");
   }
 
-  if (!shouldGenerateImage(card, input.forceRegenerate)) {
+  await ThemedDeckCardsCollection.updateAsync(
+    { deckId, originalCardName },
+    {
+      $set: {
+        themedName,
+        themedImagePrompt,
+        updatedAt: new Date(),
+      },
+    },
+  );
+
+  const updatedCard = {
+    ...card,
+    themedName,
+    themedImagePrompt,
+  };
+
+  if (!shouldGenerateImage(updatedCard, input.forceRegenerate)) {
     return {
       deckId,
       originalCardName,
       generated: false,
-      imageUrl: card.themedGeneratedImageUrl ?? null,
+      imageUrl: updatedCard.themedGeneratedImageUrl ?? null,
     };
   }
 
-  const result = await generateImageForCard(deckId, card);
+  const result = await generateImageForCard(deckId, updatedCard);
   await DecksCollection.updateAsync(
     { _id: deckId },
     {

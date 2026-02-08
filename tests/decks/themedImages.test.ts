@@ -243,16 +243,20 @@ describe("generateDeckThemedImages", function () {
     const result = await generateThemedImageForCard({
       deckId,
       originalCardName: "Command Tower",
+      themedName: "Citadel Spire Reforged",
+      themedImagePrompt: "new prompt two",
       forceRegenerate: false,
     });
 
     assert.strictEqual(result.generated, true);
-    assert.strictEqual(result.imageUrl, "https://generated/prompt two");
+    assert.strictEqual(result.imageUrl, "https://generated/new prompt two");
 
     const selected = await ThemedDeckCardsCollection.findOneAsync({ deckId, originalCardName: "Command Tower" });
     const unselected = await ThemedDeckCardsCollection.findOneAsync({ deckId, originalCardName: "Arcane Signet" });
     assert.strictEqual(selected?.themedGeneratedImageStatus, "generated");
-    assert.strictEqual(selected?.themedGeneratedImageUrl, "https://generated/prompt two");
+    assert.strictEqual(selected?.themedGeneratedImageUrl, "https://generated/new prompt two");
+    assert.strictEqual(selected?.themedName, "Citadel Spire Reforged");
+    assert.strictEqual(selected?.themedImagePrompt, "new prompt two");
     assert.strictEqual(unselected?.themedGeneratedImageStatus, "idle");
     assert.strictEqual(unselected?.themedGeneratedImageUrl, null);
   });
