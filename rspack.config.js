@@ -14,6 +14,12 @@ module.exports = defineConfig((Meteor) => {
   return {
     module: {
       rules: [
+        // Run PostCSS on imported CSS so Tailwind directives are compiled.
+        {
+          test: /\.css$/i,
+          type: "css",
+          use: ["postcss-loader"],
+        },
         // Add support for importing SVGs as React components
         {
           test: /\.svg$/i,
