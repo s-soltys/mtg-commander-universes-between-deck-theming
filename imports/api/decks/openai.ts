@@ -27,8 +27,8 @@ interface ChatCompletionsResponse {
 
 const OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_IMAGE_GENERATIONS_URL = "https://api.openai.com/v1/images/generations";
-const DEFAULT_MODEL = "gpt-4o-mini";
-const DEFAULT_IMAGE_MODEL = "gpt-image-1";
+const DEFAULT_MODEL = "gpt-5-mini";
+const DEFAULT_IMAGE_MODEL = "gpt-image-1.5";
 
 export const generateDeckThemeWithOpenAI = async (
   input: OpenAIThemeDeckInput,
@@ -137,19 +137,39 @@ export const generateThemedCardImageWithOpenAI = async (prompt: string): Promise
     body: JSON.stringify({
       model: DEFAULT_IMAGE_MODEL,
       prompt,
-      size: "940x680",
+      size: "1536x1024",
     }),
   });
 
   if (!response.ok) {
+    const body = await response.text();
+    let errBody: unknown = body;
+    try {
+      errBody = body ? JSON.parse(body) : body;
+    } catch {
+      // keep as text
+    }
+    console.error("[openai] Image generation failed:", {
+      status: response.status,
+      statusText: response.statusText,
+      body: errBody,
+      promptLength: prompt.length,
+    });
     throw new Error(`OpenAI image request failed with status ${response.status}.`);
   }
 
   const payload = (await response.json()) as {
     data?: Array<{ url?: unknown; b64_json?: unknown }>;
+    error?: unknown;
   };
   const first = payload.data?.[0];
   if (!first) {
+    console.error("[openai] Image response missing data array or first item:", {
+      hasData: Array.isArray(payload.data),
+      dataLength: payload.data?.length ?? 0,
+      payloadKeys: Object.keys(payload),
+      error: payload.error,
+    });
     throw new Error("OpenAI image response missing data.");
   }
 
@@ -161,6 +181,12 @@ export const generateThemedCardImageWithOpenAI = async (prompt: string): Promise
     return `data:image/png;base64,${first.b64_json}`;
   }
 
+  console.error("[openai] Image response missing URL and b64_json:", {
+    hasUrl: "url" in first,
+    urlType: typeof first.url,
+    hasB64: "b64_json" in first,
+    b64Type: typeof first.b64_json,
+  });
   throw new Error("OpenAI image response missing URL.");
 };
 
