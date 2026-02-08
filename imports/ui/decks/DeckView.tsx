@@ -19,7 +19,7 @@ import type {
 } from "/imports/api/decks";
 import { DeckCardRow } from "./DeckCardRow";
 import { buildThemedDetailsByOriginalCard, type ThemedCardDetails } from "./themedNames";
-import { filterDeckCardsByOriginalTitle } from "./cardSearch";
+import { filterDeckCardsByOriginalTitle, filterDeckCardsByViewFilter, type DeckCardViewFilter } from "./cardSearch";
 
 interface DeckViewProps {
   deckId: string;
@@ -60,6 +60,7 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
   const [compositeGenerationError, setCompositeGenerationError] = React.useState<string | null>(null);
   const [compositeGenerationSummary, setCompositeGenerationSummary] = React.useState<string | null>(null);
   const [originalCardSearch, setOriginalCardSearch] = React.useState<string>("");
+  const [cardViewFilter, setCardViewFilter] = React.useState<DeckCardViewFilter>("all");
 
   const isLoading = isDeckLoading() || isCardsLoading() || isThemedCardsLoading();
   const deck = decks[0];
@@ -75,9 +76,34 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
     () => new Map(themedCards.map((card) => [card.originalCardName, card])),
     [themedCards],
   );
-  const filteredCards = React.useMemo(
+  const searchFilteredCards = React.useMemo(
     () => filterDeckCardsByOriginalTitle(cards, originalCardSearch),
     [cards, originalCardSearch],
+  );
+  const filteredCards = React.useMemo(
+    () => filterDeckCardsByViewFilter(searchFilteredCards, themedCardsByOriginalName, cardViewFilter),
+    [cardViewFilter, searchFilteredCards, themedCardsByOriginalName],
+  );
+  const filterCountByType = React.useMemo(
+    () => ({
+      all: searchFilteredCards.length,
+      withGeneratedImage: filterDeckCardsByViewFilter(
+        searchFilteredCards,
+        themedCardsByOriginalName,
+        "withGeneratedImage",
+      ).length,
+      withoutGeneratedImage: filterDeckCardsByViewFilter(
+        searchFilteredCards,
+        themedCardsByOriginalName,
+        "withoutGeneratedImage",
+      ).length,
+      withGeneratedThemedCard: filterDeckCardsByViewFilter(
+        searchFilteredCards,
+        themedCardsByOriginalName,
+        "withGeneratedThemedCard",
+      ).length,
+    }),
+    [searchFilteredCards, themedCardsByOriginalName],
   );
 
   if (isLoading) {
@@ -365,6 +391,56 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
           </label>
         </div>
 
+        <div className="mt-4">
+          <p className="mb-2 text-sm font-medium text-slate-700">Filters</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              className={`inline-flex items-center rounded-full border px-3 py-1 text-sm transition ${
+                cardViewFilter === "all"
+                  ? "border-red-300 bg-red-50 text-red-800"
+                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+              }`}
+              onClick={() => setCardViewFilter("all")}
+              type="button"
+            >
+              All cards ({filterCountByType.all})
+            </button>
+            <button
+              className={`inline-flex items-center rounded-full border px-3 py-1 text-sm transition ${
+                cardViewFilter === "withGeneratedImage"
+                  ? "border-red-300 bg-red-50 text-red-800"
+                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+              }`}
+              onClick={() => setCardViewFilter("withGeneratedImage")}
+              type="button"
+            >
+              With generated image ({filterCountByType.withGeneratedImage})
+            </button>
+            <button
+              className={`inline-flex items-center rounded-full border px-3 py-1 text-sm transition ${
+                cardViewFilter === "withoutGeneratedImage"
+                  ? "border-red-300 bg-red-50 text-red-800"
+                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+              }`}
+              onClick={() => setCardViewFilter("withoutGeneratedImage")}
+              type="button"
+            >
+              Without generated image ({filterCountByType.withoutGeneratedImage})
+            </button>
+            <button
+              className={`inline-flex items-center rounded-full border px-3 py-1 text-sm transition ${
+                cardViewFilter === "withGeneratedThemedCard"
+                  ? "border-red-300 bg-red-50 text-red-800"
+                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+              }`}
+              onClick={() => setCardViewFilter("withGeneratedThemedCard")}
+              type="button"
+            >
+              With generated themed card ({filterCountByType.withGeneratedThemedCard})
+            </button>
+          </div>
+        </div>
+
         {unresolvedCardNames.length > 0 ? (
           <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
             Missing image data for: {unresolvedCardNames.join(", ")}
@@ -410,7 +486,9 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
         </ul>
 
         {filteredCards.length === 0 ? (
-          <p className="mt-4 text-sm text-slate-500">No cards match that original title search.</p>
+          <p className="mt-4 text-sm text-slate-500">
+            No cards match the current search and filter.
+          </p>
         ) : null}
       </div>
 
