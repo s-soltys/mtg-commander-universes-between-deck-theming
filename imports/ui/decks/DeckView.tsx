@@ -10,8 +10,7 @@ import {
 } from "/imports/api/decks";
 import type { DeckCardDoc, DeckCopyResult, DeckDoc, DeckThemeStartResult, ThemedDeckCardDoc } from "/imports/api/decks";
 import { DeckCardRow } from "./DeckCardRow";
-import { ThemedDeckGrid } from "./ThemedDeckGrid";
-import { buildThemedNameByOriginalCard } from "./themedNames";
+import { buildThemedDetailsByOriginalCard, type ThemedCardDetails } from "./themedNames";
 
 interface DeckViewProps {
   deckId: string;
@@ -46,8 +45,11 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
   const isLoading = isDeckLoading() || isCardsLoading() || isThemedCardsLoading();
   const deck = decks[0];
   const cardCount = cards.reduce((sum, card) => sum + card.quantity, 0);
-  const themedNameByOriginalCard = React.useMemo(
-    () => (deck?.themingStatus === "completed" ? buildThemedNameByOriginalCard(themedCards) : new Map<string, string>()),
+  const themedDetailsByOriginalCard = React.useMemo(
+    () =>
+      deck?.themingStatus === "completed"
+        ? buildThemedDetailsByOriginalCard(themedCards)
+        : new Map<string, ThemedCardDetails>(),
     [deck?.themingStatus, themedCards],
   );
 
@@ -201,17 +203,20 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
         ) : null}
 
         <ul className="mt-4 grid grid-cols-1 gap-3">
-          {cards.map((card) => (
+          {cards.map((card) => {
+            const themedDetails = themedDetailsByOriginalCard.get(card.name);
+
+            return (
             <DeckCardRow
               card={card}
               key={card._id ?? `${card.name}-${card.quantity}`}
-              themedName={themedNameByOriginalCard.get(card.name) ?? null}
+              themedDescription={themedDetails?.themedDescription ?? null}
+              themedName={themedDetails?.themedName ?? null}
             />
-          ))}
+            );
+          })}
         </ul>
       </div>
-
-      {deck.themingStatus === "completed" ? <ThemedDeckGrid deckId={deckId} /> : null}
 
       {isThemeModalOpen ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 px-4">

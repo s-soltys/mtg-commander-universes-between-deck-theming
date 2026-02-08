@@ -55,6 +55,8 @@
 
 ## Decklist Presentation Rules
 - When a deck has completed theming, each decklist card row must show themed card name alongside the original card name.
+- Decklist rows should render as a two-column card layout: original name + original art on the left, themed name + themed description on the right.
+- Do not render a separate themed section when themed details are already shown inline in the decklist rows.
 
 ## Rule Maintenance
 - Treat user direction changes and new perspectives as rule-update triggers.

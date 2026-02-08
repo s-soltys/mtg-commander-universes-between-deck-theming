@@ -1,9 +1,14 @@
 import type { ThemedDeckCardDoc } from "/imports/api/decks";
 
-export const buildThemedNameByOriginalCard = (
+export interface ThemedCardDetails {
+  themedName: string;
+  themedDescription: string;
+}
+
+export const buildThemedDetailsByOriginalCard = (
   themedCards: ThemedDeckCardDoc[],
-): Map<string, string> => {
-  const themedNameByOriginalCard = new Map<string, string>();
+): Map<string, ThemedCardDetails> => {
+  const themedDetailsByOriginalCard = new Map<string, ThemedCardDetails>();
 
   for (const themedCard of themedCards) {
     if (!themedCard.themedName) {
@@ -14,8 +19,16 @@ export const buildThemedNameByOriginalCard = (
       continue;
     }
 
-    themedNameByOriginalCard.set(themedCard.originalCardName, themedCard.themedName);
+    const themedDescription =
+      themedCard.status === "skipped"
+        ? "Basic land unchanged."
+        : themedCard.themedConcept ?? themedCard.themedFlavorText ?? "No themed description available.";
+
+    themedDetailsByOriginalCard.set(themedCard.originalCardName, {
+      themedName: themedCard.themedName,
+      themedDescription,
+    });
   }
 
-  return themedNameByOriginalCard;
+  return themedDetailsByOriginalCard;
 };

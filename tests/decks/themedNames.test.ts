@@ -1,9 +1,9 @@
 import { strict as assert } from "node:assert";
-import { buildThemedNameByOriginalCard } from "/imports/ui/decks/themedNames";
+import { buildThemedDetailsByOriginalCard } from "/imports/ui/decks/themedNames";
 import type { ThemedDeckCardDoc } from "/imports/api/decks";
 
-describe("buildThemedNameByOriginalCard", function () {
-  it("returns themed names for generated and skipped rows only", function () {
+describe("buildThemedDetailsByOriginalCard", function () {
+  it("returns themed names and descriptions for generated and skipped rows only", function () {
     const now = new Date();
     const input: ThemedDeckCardDoc[] = [
       {
@@ -56,10 +56,16 @@ describe("buildThemedNameByOriginalCard", function () {
       },
     ];
 
-    const result = buildThemedNameByOriginalCard(input);
+    const result = buildThemedDetailsByOriginalCard(input);
 
-    assert.strictEqual(result.get("Sol Ring"), "Arcanum Core");
-    assert.strictEqual(result.get("Plains"), "Plains");
+    assert.deepStrictEqual(result.get("Sol Ring"), {
+      themedName: "Arcanum Core",
+      themedDescription: "No themed description available.",
+    });
+    assert.deepStrictEqual(result.get("Plains"), {
+      themedName: "Plains",
+      themedDescription: "Basic land unchanged.",
+    });
     assert.strictEqual(result.has("Arcane Signet"), false);
   });
 });
