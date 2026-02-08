@@ -6,6 +6,7 @@ import "./decks/methods.test";
 import "./decks/appSettings.test";
 import "./decks/publications.test";
 import "./decks/themedNames.test";
+import "./decks/cardSearch.test";
 import "./decks/theming.test";
 import "./decks/themedImages.test";
 import "./decks/openai.test";
