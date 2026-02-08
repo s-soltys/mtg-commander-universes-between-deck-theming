@@ -1,8 +1,10 @@
 import * as React from "react";
+import { Meteor } from "meteor/meteor";
 import { useFind, useSubscribe } from "meteor/react-meteor-data";
-import { DeckCardsCollection, DeckPublicationNames, DecksCollection } from "/imports/api/decks";
-import type { DeckCardDoc, DeckDoc } from "/imports/api/decks";
+import { DeckCardsCollection, DeckMethodNames, DeckPublicationNames, DecksCollection } from "/imports/api/decks";
+import type { DeckCardDoc, DeckDoc, DeckThemeStartResult } from "/imports/api/decks";
 import { DeckCardRow } from "./DeckCardRow";
+import { ThemedDeckGrid } from "./ThemedDeckGrid";
 
 interface DeckViewProps {
   deckId: string;
@@ -16,6 +18,13 @@ export const DeckView = ({ deckId, unresolvedCardNames = [] }: DeckViewProps) =>
   const decks = useFind(() => DecksCollection.find({ _id: deckId })) as DeckDoc[];
   const cards = useFind(() => DeckCardsCollection.find({ deckId }, { sort: { name: 1 } })) as DeckCardDoc[];
 
+  const [isThemeModalOpen, setIsThemeModalOpen] = React.useState<boolean>(false);
+  const [themeUniverse, setThemeUniverse] = React.useState<string>("");
+  const [artStyleBrief, setArtStyleBrief] = React.useState<string>("");
+  const [confirmDiscardPrevious, setConfirmDiscardPrevious] = React.useState<boolean>(false);
+  const [isStartingTheme, setIsStartingTheme] = React.useState<boolean>(false);
+  const [themeErrorMessage, setThemeErrorMessage] = React.useState<string | null>(null);
+
   const isLoading = isDeckLoading() || isCardsLoading();
   const deck = decks[0];
   const cardCount = cards.reduce((sum, card) => sum + card.quantity, 0);
@@ -28,26 +37,158 @@ export const DeckView = ({ deckId, unresolvedCardNames = [] }: DeckViewProps) =>
     return <p className="text-sm text-slate-500">Deck not found for id `{deckId}`.</p>;
   }
 
+  const isThemeButtonDisabled = deck.themingStatus === "running";
+  const requiresDiscardConfirmation =
+    deck.themingStatus === "completed" || deck.themingStatus === "failed";
+
+  const handleThemeSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    setThemeErrorMessage(null);
+    setIsStartingTheme(true);
+
+    try {
+      await Meteor.callAsync<DeckThemeStartResult>(DeckMethodNames.startTheming, {
+        deckId,
+        themeUniverse,
+        artStyleBrief,
+        confirmDiscardPrevious,
+      });
+
+      setIsThemeModalOpen(false);
+      setThemeUniverse("");
+      setArtStyleBrief("");
+      setConfirmDiscardPrevious(false);
+    } catch (error) {
+      if (error instanceof Error && error.message.trim().length > 0) {
+        setThemeErrorMessage(error.message);
+      } else {
+        setThemeErrorMessage("Failed to start deck theming.");
+      }
+    } finally {
+      setIsStartingTheme(false);
+    }
+  };
+
   return (
-    <section className="rounded-xl border border-slate-200 bg-slate-50 p-5 md:p-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-900">{deck.title}</h2>
-          <p className="text-sm text-slate-600">Total cards: {cardCount}</p>
+    <section className="space-y-4">
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 md:p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">{deck.title}</h2>
+            <p className="text-sm text-slate-600">Total cards: {cardCount}</p>
+          </div>
+          <button
+            className="inline-flex cursor-pointer items-center rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isThemeButtonDisabled || isStartingTheme}
+            onClick={() => {
+              setThemeErrorMessage(null);
+              setConfirmDiscardPrevious(false);
+              setIsThemeModalOpen(true);
+            }}
+            type="button"
+          >
+            {deck.themingStatus === "completed" ? "Re-theme Deck" : "Theme Deck"}
+          </button>
         </div>
+
+        {deck.themingStatus === "running" ? (
+          <div className="mt-4 rounded-lg border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900">
+            Generating themed deck...
+          </div>
+        ) : null}
+
+        {deck.themingStatus === "failed" ? (
+          <div className="mt-4 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+            Deck theming failed: {deck.themingError ?? "Unknown error."}
+          </div>
+        ) : null}
+
+        {unresolvedCardNames.length > 0 ? (
+          <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            Missing image data for: {unresolvedCardNames.join(", ")}
+          </div>
+        ) : null}
+
+        <ul className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+          {cards.map((card) => (
+            <DeckCardRow card={card} key={card._id ?? `${card.name}-${card.quantity}`} />
+          ))}
+        </ul>
       </div>
 
-      {unresolvedCardNames.length > 0 ? (
-        <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          Missing image data for: {unresolvedCardNames.join(", ")}
+      {deck.themingStatus === "completed" ? <ThemedDeckGrid deckId={deckId} /> : null}
+
+      {isThemeModalOpen ? (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 px-4">
+          <div className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-5 shadow-lg md:p-6">
+            <h3 className="text-lg font-semibold text-slate-900">Theme Deck</h3>
+            <p className="mt-1 text-sm text-slate-600">Provide a universe theme and visual style brief.</p>
+
+            <form className="mt-4 space-y-4" onSubmit={handleThemeSubmit}>
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-slate-700">Theme universe</span>
+                <input
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-red-500/40 transition focus:ring"
+                  onChange={(event) => setThemeUniverse(event.target.value)}
+                  placeholder="The Lord of the Rings"
+                  required
+                  type="text"
+                  value={themeUniverse}
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-slate-700">Art style brief</span>
+                <textarea
+                  className="h-28 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none ring-red-500/40 transition focus:ring"
+                  onChange={(event) => setArtStyleBrief(event.target.value)}
+                  placeholder="Cinematic realism with warm lighting and detailed costumes"
+                  required
+                  value={artStyleBrief}
+                />
+              </label>
+
+              {requiresDiscardConfirmation ? (
+                <label className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                  <input
+                    checked={confirmDiscardPrevious}
+                    className="mt-0.5 h-4 w-4"
+                    onChange={(event) => setConfirmDiscardPrevious(event.target.checked)}
+                    type="checkbox"
+                  />
+                  <span>
+                    Confirm re-theming and discard all previously generated themed cards for this deck.
+                  </span>
+                </label>
+              ) : null}
+
+              {themeErrorMessage ? <p className="text-sm text-red-600">{themeErrorMessage}</p> : null}
+
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
+                  onClick={() => {
+                    setThemeErrorMessage(null);
+                    setConfirmDiscardPrevious(false);
+                    setIsThemeModalOpen(false);
+                  }}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="inline-flex cursor-pointer items-center rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isStartingTheme || (requiresDiscardConfirmation && !confirmDiscardPrevious)}
+                  type="submit"
+                >
+                  {isStartingTheme ? "Starting..." : "Start Theming"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       ) : null}
-
-      <ul className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-        {cards.map((card) => (
-          <DeckCardRow card={card} key={card._id ?? `${card.name}-${card.quantity}`} />
-        ))}
-      </ul>
     </section>
   );
 };

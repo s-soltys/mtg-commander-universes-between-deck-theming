@@ -2,7 +2,14 @@ import { Meteor } from "meteor/meteor";
 import { DeckCardsCollection, DecksCollection } from "./collections";
 import { parseDecklist } from "./parser";
 import { resolveCardFromScryfall } from "./scryfall";
-import type { DeckCreateInput, DeckCreateResult, ResolvedCardImage } from "./types";
+import { startDeckTheming } from "./theming";
+import type {
+  DeckCreateInput,
+  DeckCreateResult,
+  DeckThemeStartInput,
+  DeckThemeStartResult,
+  ResolvedCardImage,
+} from "./types";
 
 type CardImageResolver = (cardName: string) => Promise<ResolvedCardImage | null>;
 
@@ -30,6 +37,12 @@ export const createDeck = async ({ title, decklistText }: DeckCreateInput): Prom
   const now = new Date();
   const deckId = await DecksCollection.insertAsync({
     title: title.trim(),
+    themingStatus: "idle",
+    themingThemeUniverse: null,
+    themingArtStyleBrief: null,
+    themingStartedAt: null,
+    themingCompletedAt: null,
+    themingError: null,
     createdAt: now,
     updatedAt: now,
   });
@@ -61,9 +74,14 @@ export const createDeck = async ({ title, decklistText }: DeckCreateInput): Prom
   };
 };
 
+export const startDeckThemingMethod = async (
+  input: DeckThemeStartInput,
+): Promise<DeckThemeStartResult> => startDeckTheming(input);
+
 export const registerDeckMethods = (): void => {
   Meteor.methods({
     "decks.create": createDeck,
+    "decks.startTheming": startDeckThemingMethod,
   });
 };
 

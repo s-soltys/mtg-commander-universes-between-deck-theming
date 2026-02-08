@@ -31,6 +31,14 @@
 - Treat deck parsing as deterministic pure logic and cover it with unit tests.
 - Keep third-party API calls server-only and resilient to partial lookup failures.
 
+## Deck Theming Rules
+- Themed generation must run server-side only.
+- Use one structured OpenAI call per deck by default.
+- Preserve gameplay mechanics unless explicitly requested otherwise.
+- Basic lands must remain unchanged.
+- Theming prompts and schemas must live in dedicated maintainable modules with tests.
+- Re-theming must require explicit user confirmation and must discard prior themed results before generating new ones.
+
 ## Rule Maintenance
 - Treat user direction changes and new perspectives as rule-update triggers.
 - When the user provides a new direction or an interesting perspective, propose a concrete refinement to `AGENTS.md` (and any related rules file) in the same thread.
