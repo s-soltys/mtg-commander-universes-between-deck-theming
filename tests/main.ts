@@ -6,6 +6,7 @@ import "./decks/methods.test";
 import "./decks/publications.test";
 import "./decks/themedNames.test";
 import "./decks/theming.test";
+import "./decks/themedImages.test";
 
 describe("app-for-decks", function () {
   it("package.json has correct name", async function () {

@@ -61,10 +61,16 @@ describe("buildThemedDetailsByOriginalCard", function () {
     assert.deepStrictEqual(result.get("Sol Ring"), {
       themedName: "Arcanum Core",
       themedDescription: "No themed description available.",
+      themedImageUrl: null,
+      themedImageStatus: "idle",
+      themedImageError: null,
     });
     assert.deepStrictEqual(result.get("Plains"), {
       themedName: "Plains",
       themedDescription: "Basic land unchanged.",
+      themedImageUrl: null,
+      themedImageStatus: "idle",
+      themedImageError: null,
     });
     assert.strictEqual(result.has("Arcane Signet"), false);
   });

@@ -5,9 +5,25 @@ interface DeckCardRowProps {
   card: DeckCardDoc;
   themedName?: string | null;
   themedDescription?: string | null;
+  themedImageUrl?: string | null;
+  themedImageStatus?: "idle" | "generated" | "failed";
+  themedImageError?: string | null;
+  canGenerateThemedImage?: boolean;
+  isGeneratingThemedImage?: boolean;
+  onGenerateThemedImage?: () => void;
 }
 
-export const DeckCardRow = ({ card, themedName = null, themedDescription = null }: DeckCardRowProps) => {
+export const DeckCardRow = ({
+  card,
+  themedName = null,
+  themedDescription = null,
+  themedImageUrl = null,
+  themedImageStatus = "idle",
+  themedImageError = null,
+  canGenerateThemedImage = false,
+  isGeneratingThemedImage = false,
+  onGenerateThemedImage,
+}: DeckCardRowProps) => {
   return (
     <li className="grid min-h-80 grid-cols-2 gap-4 rounded-lg border border-slate-200 bg-white p-4">
       <div className="flex min-h-0 flex-col">
@@ -26,9 +42,35 @@ export const DeckCardRow = ({ card, themedName = null, themedDescription = null 
 
       <div className="flex min-h-0 flex-col">
         <p className="text-sm font-semibold text-slate-900">{themedName ?? "Theme not generated yet"}</p>
+        <div className="mt-3 flex min-h-0 flex-1 items-center justify-center rounded-md border border-slate-200 bg-slate-50 p-2">
+          {themedImageUrl ? (
+            <img
+              alt={`${themedName ?? card.name} themed art`}
+              className="h-full max-h-64 w-auto rounded object-contain"
+              loading="lazy"
+              src={themedImageUrl}
+            />
+          ) : (
+            <div className="flex h-full min-h-40 w-full items-center justify-center rounded bg-slate-200 px-2 text-center text-xs text-slate-500">
+              {themedImageStatus === "failed"
+                ? themedImageError ?? "Image generation failed."
+                : "No themed image yet"}
+            </div>
+          )}
+        </div>
         <p className="mt-3 whitespace-pre-wrap text-sm leading-5 text-slate-700">
           {themedDescription ?? "Run deck theming to generate themed card details."}
         </p>
+        <div className="mt-3">
+          <button
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={!canGenerateThemedImage || isGeneratingThemedImage}
+            onClick={onGenerateThemedImage}
+            type="button"
+          >
+            {isGeneratingThemedImage ? "Generating..." : "Generate Image"}
+          </button>
+        </div>
       </div>
     </li>
   );

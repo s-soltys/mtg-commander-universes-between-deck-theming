@@ -7,6 +7,10 @@ export type {
   DeckCreateInput,
   DeckCreateResult,
   DeckDoc,
+  DeckThemeImagesGenerateInput,
+  DeckThemeImageGenerateForCardInput,
+  DeckThemeImageGenerateForCardResult,
+  DeckThemeImagesGenerateResult,
   DeckThemeStartInput,
   DeckThemeStartResult,
   ParsedDeckCard,
@@ -24,6 +28,8 @@ export const DeckMethodNames = {
   delete: "decks.delete",
   create: "decks.create",
   startTheming: "decks.startTheming",
+  generateThemedImages: "decks.generateThemedImages",
+  generateThemedImageForCard: "decks.generateThemedImageForCard",
 } as const;
 
 export const DeckPublicationNames = {

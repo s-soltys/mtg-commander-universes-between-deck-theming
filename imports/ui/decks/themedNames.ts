@@ -3,6 +3,9 @@ import type { ThemedDeckCardDoc } from "/imports/api/decks";
 export interface ThemedCardDetails {
   themedName: string;
   themedDescription: string;
+  themedImageUrl: string | null;
+  themedImageStatus: "idle" | "generated" | "failed";
+  themedImageError: string | null;
 }
 
 export const buildThemedDetailsByOriginalCard = (
@@ -27,6 +30,9 @@ export const buildThemedDetailsByOriginalCard = (
     themedDetailsByOriginalCard.set(themedCard.originalCardName, {
       themedName: themedCard.themedName,
       themedDescription,
+      themedImageUrl: themedCard.themedGeneratedImageUrl ?? null,
+      themedImageStatus: themedCard.themedGeneratedImageStatus ?? "idle",
+      themedImageError: themedCard.themedGeneratedImageError ?? null,
     });
   }
 

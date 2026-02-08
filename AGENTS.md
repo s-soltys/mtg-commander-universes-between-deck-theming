@@ -39,6 +39,11 @@
 - Theming prompts and schemas must live in dedicated maintainable modules with tests.
 - Re-theming must require explicit user confirmation and must discard prior themed results before generating new ones.
 
+## Deck Image Generation Rules
+- Themed image generation must run server-side only and only after deck theming is completed.
+- Generate themed images from stored themed card prompts on a per-card basis and persist results on themed card records.
+- Deck details must expose per-card "Generate Image" actions in decklist rows and render generated themed art inline in those rows.
+
 ## Navigation IA Rules
 - Keep deck list as the default landing page at `/`.
 - Keep deck creation on a dedicated `/create` route.

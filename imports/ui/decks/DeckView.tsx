@@ -8,7 +8,14 @@ import {
   DecksCollection,
   ThemedDeckCardsCollection,
 } from "/imports/api/decks";
-import type { DeckCardDoc, DeckCopyResult, DeckDoc, DeckThemeStartResult, ThemedDeckCardDoc } from "/imports/api/decks";
+import type {
+  DeckCardDoc,
+  DeckCopyResult,
+  DeckDoc,
+  DeckThemeImageGenerateForCardResult,
+  DeckThemeStartResult,
+  ThemedDeckCardDoc,
+} from "/imports/api/decks";
 import { DeckCardRow } from "./DeckCardRow";
 import { buildThemedDetailsByOriginalCard, type ThemedCardDetails } from "./themedNames";
 
@@ -41,6 +48,9 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
   const [isCopying, setIsCopying] = React.useState<boolean>(false);
   const [copyErrorMessage, setCopyErrorMessage] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState<boolean>(false);
+  const [imageGenerationError, setImageGenerationError] = React.useState<string | null>(null);
+  const [imageGenerationSummary, setImageGenerationSummary] = React.useState<string | null>(null);
+  const [generatingImageCardNames, setGeneratingImageCardNames] = React.useState<string[]>([]);
 
   const isLoading = isDeckLoading() || isCardsLoading() || isThemedCardsLoading();
   const deck = decks[0];
@@ -51,6 +61,10 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
         ? buildThemedDetailsByOriginalCard(themedCards)
         : new Map<string, ThemedCardDetails>(),
     [deck?.themingStatus, themedCards],
+  );
+  const themedCardsByOriginalName = React.useMemo(
+    () => new Map(themedCards.map((card) => [card.originalCardName, card])),
+    [themedCards],
   );
 
   if (isLoading) {
@@ -145,6 +159,37 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
     }
   };
 
+  const handleGenerateImageForCard = async (originalCardName: string) => {
+    setImageGenerationError(null);
+    setImageGenerationSummary(null);
+    setGeneratingImageCardNames((previous) => [...previous, originalCardName]);
+
+    try {
+      const result = await Meteor.callAsync<DeckThemeImageGenerateForCardResult>(
+        DeckMethodNames.generateThemedImageForCard,
+        {
+          deckId,
+          originalCardName,
+          forceRegenerate: false,
+        },
+      );
+
+      setImageGenerationSummary(
+        result.generated
+          ? `Generated image for ${result.originalCardName}.`
+          : `Skipped image generation for ${result.originalCardName}.`,
+      );
+    } catch (error) {
+      if (error instanceof Error && error.message.trim().length > 0) {
+        setImageGenerationError(error.message);
+      } else {
+        setImageGenerationError(`Failed to generate image for ${originalCardName}.`);
+      }
+    } finally {
+      setGeneratingImageCardNames((previous) => previous.filter((name) => name !== originalCardName));
+    }
+  };
+
   return (
     <section className="space-y-4">
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
@@ -190,6 +235,18 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
             Deck theming failed: {deck.themingError ?? "Unknown error."}
           </div>
         ) : null}
+
+        {imageGenerationSummary ? (
+          <div className="mt-4 rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-800">
+            {imageGenerationSummary}
+          </div>
+        ) : null}
+
+        {imageGenerationError ? (
+          <div className="mt-4 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+            Image generation failed: {imageGenerationError}
+          </div>
+        ) : null}
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 md:p-6">
@@ -226,12 +283,24 @@ export const DeckView = ({ deckId, onDeckCopied, onDeckDeleted, unresolvedCardNa
         <ul className="mt-4 grid grid-cols-1 gap-3">
           {cards.map((card) => {
             const themedDetails = themedDetailsByOriginalCard.get(card.name);
+            const themedCard = themedCardsByOriginalName.get(card.name);
+            const canGenerateThemedImage =
+              deck.themingStatus === "completed" &&
+              themedCard?.status === "generated" &&
+              Boolean(themedCard.themedImagePrompt?.trim());
+            const isGeneratingThemedImage = generatingImageCardNames.includes(card.name);
 
             return (
               <DeckCardRow
                 card={card}
+                canGenerateThemedImage={canGenerateThemedImage}
+                isGeneratingThemedImage={isGeneratingThemedImage}
                 key={card._id ?? `${card.name}-${card.quantity}`}
+                onGenerateThemedImage={() => void handleGenerateImageForCard(card.name)}
                 themedDescription={themedDetails?.themedDescription ?? null}
+                themedImageError={themedDetails?.themedImageError ?? null}
+                themedImageStatus={themedDetails?.themedImageStatus ?? "idle"}
+                themedImageUrl={themedDetails?.themedImageUrl ?? null}
                 themedName={themedDetails?.themedName ?? null}
               />
             );

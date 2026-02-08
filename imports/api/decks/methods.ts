@@ -3,6 +3,7 @@ import { DeckCardsCollection, DecksCollection, ThemedDeckCardsCollection } from 
 import { parseDecklist } from "./parser";
 import { resolveCardFromScryfall } from "./scryfall";
 import { startDeckTheming } from "./theming";
+import { generateDeckThemedImages, generateThemedImageForCard } from "./themedImages";
 import type {
   DeckCopyInput,
   DeckCopyResult,
@@ -10,6 +11,10 @@ import type {
   DeckDeleteResult,
   DeckCreateInput,
   DeckCreateResult,
+  DeckThemeImagesGenerateInput,
+  DeckThemeImageGenerateForCardInput,
+  DeckThemeImageGenerateForCardResult,
+  DeckThemeImagesGenerateResult,
   DeckThemeStartInput,
   DeckThemeStartResult,
   ResolvedCardImage,
@@ -98,6 +103,14 @@ export const startDeckThemingMethod = async (
   input: DeckThemeStartInput,
 ): Promise<DeckThemeStartResult> => startDeckTheming(input);
 
+export const generateDeckThemedImagesMethod = async (
+  input: DeckThemeImagesGenerateInput,
+): Promise<DeckThemeImagesGenerateResult> => generateDeckThemedImages(input);
+
+export const generateThemedImageForCardMethod = async (
+  input: DeckThemeImageGenerateForCardInput,
+): Promise<DeckThemeImageGenerateForCardResult> => generateThemedImageForCard(input);
+
 export const copyDeck = async ({ sourceDeckId, title }: DeckCopyInput): Promise<DeckCopyResult> => {
   validateDeckCopyInput({ sourceDeckId, title });
 
@@ -161,6 +174,8 @@ export const registerDeckMethods = (): void => {
     "decks.delete": deleteDeck,
     "decks.create": createDeck,
     "decks.startTheming": startDeckThemingMethod,
+    "decks.generateThemedImages": generateDeckThemedImagesMethod,
+    "decks.generateThemedImageForCard": generateThemedImageForCardMethod,
   });
 };
 

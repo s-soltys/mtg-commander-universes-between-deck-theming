@@ -25,7 +25,9 @@ interface ChatCompletionsResponse {
 }
 
 const OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
+const OPENAI_IMAGE_GENERATIONS_URL = "https://api.openai.com/v1/images/generations";
 const DEFAULT_MODEL = "gpt-4o-mini";
+const DEFAULT_IMAGE_MODEL = "gpt-image-1";
 
 export const generateDeckThemeWithOpenAI = async (
   input: OpenAIThemeDeckInput,
@@ -116,6 +118,49 @@ export const generateDeckThemeWithOpenAI = async (
   }
 
   return parsed.cards;
+};
+
+export const generateThemedCardImageWithOpenAI = async (prompt: string): Promise<string> => {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey || apiKey.trim().length === 0) {
+    console.error("[openai] Missing OPENAI_API_KEY at runtime. Verify .env/.env.local and restart Meteor.");
+    throw new Error("Missing OPENAI_API_KEY.");
+  }
+
+  const response = await fetch(OPENAI_IMAGE_GENERATIONS_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: DEFAULT_IMAGE_MODEL,
+      prompt,
+      size: "1024x1024",
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenAI image request failed with status ${response.status}.`);
+  }
+
+  const payload = (await response.json()) as {
+    data?: Array<{ url?: unknown; b64_json?: unknown }>;
+  };
+  const first = payload.data?.[0];
+  if (!first) {
+    throw new Error("OpenAI image response missing data.");
+  }
+
+  if (typeof first.url === "string" && first.url.trim().length > 0) {
+    return first.url;
+  }
+
+  if (typeof first.b64_json === "string" && first.b64_json.trim().length > 0) {
+    return `data:image/png;base64,${first.b64_json}`;
+  }
+
+  throw new Error("OpenAI image response missing URL.");
 };
 
 const safeParseJson = (raw: string): unknown => {
