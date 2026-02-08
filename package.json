@@ -16,19 +16,23 @@
   },
   "devDependencies": {
     "@meteorjs/rspack": "^1.0.0",
+    "@types/node": "^25.2.2",
+    "@types/react": "^18.3.24",
+    "@types/react-dom": "^18.3.7",
     "@rsdoctor/rspack-plugin": "^1.2.3",
     "@rspack/cli": "^1.7.1",
     "@rspack/core": "^1.7.1",
     "@rspack/plugin-react-refresh": "^1.4.3",
     "@svgr/webpack": "^8.1.0",
-    "react-refresh": "^0.17.0"
+    "react-refresh": "^0.17.0",
+    "typescript": "^5.9.3"
   },
   "meteor": {
     "mainModule": {
-      "client": "client/main.jsx",
-      "server": "server/main.js"
+      "client": "client/main.tsx",
+      "server": "server/main.ts"
     },
-    "testModule": "tests/main.js",
+    "testModule": "tests/main.ts",
     "modern": true
   }
 }

@@ -1,6 +1,7 @@
-import { Counter } from "./Counter.jsx";
-import { Header } from "./Header.jsx";
-import { Info } from "./Info.jsx";
+import * as React from "react";
+import { Counter } from "./Counter";
+import { Header } from "./Header";
+import { Info } from "./Info";
 
 export const App = () => (
   <div className="page">

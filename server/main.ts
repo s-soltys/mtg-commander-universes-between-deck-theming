@@ -1,8 +1,8 @@
 import { Meteor } from "meteor/meteor";
-import { LinksCollection } from "/imports/api/links";
+import { type LinkInsert, LinksCollection } from "/imports/api/links";
 import { Random } from "meteor/random";
 
-async function insertLink({ title, url }) {
+async function insertLink({ title, url }: LinkInsert): Promise<void> {
   await LinksCollection.insertAsync({ title, url, createdAt: new Date() });
 }
 

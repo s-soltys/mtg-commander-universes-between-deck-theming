@@ -1,4 +1,5 @@
-import assert from "assert";
+import { strict as assert } from "node:assert";
+import { Meteor } from "meteor/meteor";
 
 describe("app-for-decks", function () {
   it("package.json has correct name", async function () {

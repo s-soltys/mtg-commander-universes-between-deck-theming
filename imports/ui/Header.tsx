@@ -1,3 +1,4 @@
+import * as React from "react";
 import MeteorLogo from "./meteor-logo.svg";
 
 export const Header = () => {

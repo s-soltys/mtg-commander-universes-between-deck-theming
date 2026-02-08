@@ -1,7 +1,8 @@
+import * as React from "react";
 import { useState } from "react";
 
 export const Counter = () => {
-  const [counter, setCounter] = useState(0);
+  const [counter, setCounter] = useState<number>(0);
 
   const increment = () => {
     setCounter(counter + 1);
@@ -11,7 +12,7 @@ export const Counter = () => {
     <div className="card counter-card">
       <div className="counter-content">
         <button className="button" onClick={increment}>
-          Click Me
+          Click Me :)
         </button>
         <p className="counter-text">
           You've pressed the button{" "}

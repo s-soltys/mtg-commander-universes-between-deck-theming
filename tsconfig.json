@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "/imports/*": ["imports/*"]
+    },
+    "jsx": "react-jsx",
+    "strict": false,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUncheckedIndexedAccess": false,
+    "skipLibCheck": true,
+    "allowJs": false,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "types": ["node", "react", "react-dom"]
+  },
+  "include": ["client/**/*", "server/**/*", "imports/**/*", "tests/**/*", "types/**/*"]
+}
