@@ -91,6 +91,8 @@ export const registerDeckPublications = (): void => {
       },
     });
 
-    return () => handle.stop();
+    this.onStop(() => {
+      handle.stop();
+    });
   });
 };
