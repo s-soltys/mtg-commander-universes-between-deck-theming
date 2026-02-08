@@ -4,6 +4,8 @@ import { parseDecklist } from "./parser";
 import { resolveCardFromScryfall } from "./scryfall";
 import { startDeckTheming } from "./theming";
 import type {
+  DeckCopyInput,
+  DeckCopyResult,
   DeckCreateInput,
   DeckCreateResult,
   DeckThemeStartInput,
@@ -22,6 +24,16 @@ const validateDeckCreateInput = ({ title, decklistText }: DeckCreateInput): void
 
   if (decklistText.trim().length === 0) {
     throw new Meteor.Error("invalid-decklist", "Deck list text is required.");
+  }
+};
+
+const validateDeckCopyInput = ({ sourceDeckId, title }: DeckCopyInput): void => {
+  if (typeof sourceDeckId !== "string" || sourceDeckId.trim().length === 0) {
+    throw new Meteor.Error("invalid-deck-id", "Source deck id is required.");
+  }
+
+  if (title.trim().length === 0) {
+    throw new Meteor.Error("invalid-title", "Title is required.");
   }
 };
 
@@ -78,8 +90,50 @@ export const startDeckThemingMethod = async (
   input: DeckThemeStartInput,
 ): Promise<DeckThemeStartResult> => startDeckTheming(input);
 
+export const copyDeck = async ({ sourceDeckId, title }: DeckCopyInput): Promise<DeckCopyResult> => {
+  validateDeckCopyInput({ sourceDeckId, title });
+
+  const sourceDeckIdValue = sourceDeckId.trim();
+  const sourceDeck = await DecksCollection.findOneAsync({ _id: sourceDeckIdValue });
+  if (!sourceDeck) {
+    throw new Meteor.Error("deck-not-found", "Deck not found.");
+  }
+
+  const sourceCards = await DeckCardsCollection.find({ deckId: sourceDeckIdValue }).fetch();
+  const now = new Date();
+  const deckId = await DecksCollection.insertAsync({
+    title: title.trim(),
+    themingStatus: "idle",
+    themingThemeUniverse: null,
+    themingArtStyleBrief: null,
+    themingStartedAt: null,
+    themingCompletedAt: null,
+    themingError: null,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  for (const card of sourceCards) {
+    await DeckCardsCollection.insertAsync({
+      deckId,
+      name: card.name,
+      quantity: card.quantity,
+      imageSource: card.imageSource,
+      scryfallId: card.scryfallId,
+      imageUrl: card.imageUrl,
+      createdAt: now,
+    });
+  }
+
+  return {
+    deckId,
+    cardCount: sourceCards.reduce((sum, card) => sum + card.quantity, 0),
+  };
+};
+
 export const registerDeckMethods = (): void => {
   Meteor.methods({
+    "decks.copy": copyDeck,
     "decks.create": createDeck,
     "decks.startTheming": startDeckThemingMethod,
   });

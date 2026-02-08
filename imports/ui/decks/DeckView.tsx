@@ -2,16 +2,17 @@ import * as React from "react";
 import { Meteor } from "meteor/meteor";
 import { useFind, useSubscribe } from "meteor/react-meteor-data";
 import { DeckCardsCollection, DeckMethodNames, DeckPublicationNames, DecksCollection } from "/imports/api/decks";
-import type { DeckCardDoc, DeckDoc, DeckThemeStartResult } from "/imports/api/decks";
+import type { DeckCardDoc, DeckCopyResult, DeckDoc, DeckThemeStartResult } from "/imports/api/decks";
 import { DeckCardRow } from "./DeckCardRow";
 import { ThemedDeckGrid } from "./ThemedDeckGrid";
 
 interface DeckViewProps {
   deckId: string;
+  onDeckCopied: (deckId: string) => void;
   unresolvedCardNames?: string[];
 }
 
-export const DeckView = ({ deckId, unresolvedCardNames = [] }: DeckViewProps) => {
+export const DeckView = ({ deckId, onDeckCopied, unresolvedCardNames = [] }: DeckViewProps) => {
   const isDeckLoading = useSubscribe(DeckPublicationNames.publicOne, deckId);
   const isCardsLoading = useSubscribe(DeckPublicationNames.cardsByDeck, deckId);
 
@@ -24,6 +25,10 @@ export const DeckView = ({ deckId, unresolvedCardNames = [] }: DeckViewProps) =>
   const [confirmDiscardPrevious, setConfirmDiscardPrevious] = React.useState<boolean>(false);
   const [isStartingTheme, setIsStartingTheme] = React.useState<boolean>(false);
   const [themeErrorMessage, setThemeErrorMessage] = React.useState<string | null>(null);
+  const [isCopyModalOpen, setIsCopyModalOpen] = React.useState<boolean>(false);
+  const [copyTitle, setCopyTitle] = React.useState<string>("");
+  const [isCopying, setIsCopying] = React.useState<boolean>(false);
+  const [copyErrorMessage, setCopyErrorMessage] = React.useState<string | null>(null);
 
   const isLoading = isDeckLoading() || isCardsLoading();
   const deck = decks[0];
@@ -70,6 +75,36 @@ export const DeckView = ({ deckId, unresolvedCardNames = [] }: DeckViewProps) =>
     }
   };
 
+  const openCopyModal = () => {
+    setCopyErrorMessage(null);
+    setCopyTitle(`${deck.title} (Copy)`);
+    setIsCopyModalOpen(true);
+  };
+
+  const handleCopySubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsCopying(true);
+    setCopyErrorMessage(null);
+
+    try {
+      const result = await Meteor.callAsync<DeckCopyResult>(DeckMethodNames.copy, {
+        sourceDeckId: deckId,
+        title: copyTitle,
+      });
+
+      setIsCopyModalOpen(false);
+      onDeckCopied(result.deckId);
+    } catch (error) {
+      if (error instanceof Error && error.message.trim().length > 0) {
+        setCopyErrorMessage(error.message);
+      } else {
+        setCopyErrorMessage("Failed to copy deck.");
+      }
+    } finally {
+      setIsCopying(false);
+    }
+  };
+
   return (
     <section className="space-y-4">
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 md:p-6">
@@ -91,6 +126,15 @@ export const DeckView = ({ deckId, unresolvedCardNames = [] }: DeckViewProps) =>
             {deck.themingStatus === "completed" ? "Re-theme Deck" : "Theme Deck"}
           </button>
         </div>
+        <div className="mt-3">
+          <button
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
+            onClick={openCopyModal}
+            type="button"
+          >
+            Copy Deck
+          </button>
+        </div>
 
         {deck.themingStatus === "running" ? (
           <div className="mt-4 rounded-lg border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900">
@@ -110,7 +154,7 @@ export const DeckView = ({ deckId, unresolvedCardNames = [] }: DeckViewProps) =>
           </div>
         ) : null}
 
-        <ul className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+        <ul className="mt-4 grid grid-cols-1 gap-3">
           {cards.map((card) => (
             <DeckCardRow card={card} key={card._id ?? `${card.name}-${card.quantity}`} />
           ))}
@@ -183,6 +227,50 @@ export const DeckView = ({ deckId, unresolvedCardNames = [] }: DeckViewProps) =>
                   type="submit"
                 >
                   {isStartingTheme ? "Starting..." : "Start Theming"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {isCopyModalOpen ? (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 px-4">
+          <div className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-5 shadow-lg md:p-6">
+            <h3 className="text-lg font-semibold text-slate-900">Copy Deck</h3>
+            <p className="mt-1 text-sm text-slate-600">Provide a new title for the copied decklist.</p>
+
+            <form className="mt-4 space-y-4" onSubmit={handleCopySubmit}>
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-slate-700">New deck title</span>
+                <input
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-red-500/40 transition focus:ring"
+                  onChange={(event) => setCopyTitle(event.target.value)}
+                  required
+                  type="text"
+                  value={copyTitle}
+                />
+              </label>
+
+              {copyErrorMessage ? <p className="text-sm text-red-600">{copyErrorMessage}</p> : null}
+
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
+                  onClick={() => {
+                    setCopyErrorMessage(null);
+                    setIsCopyModalOpen(false);
+                  }}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="inline-flex cursor-pointer items-center rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isCopying}
+                  type="submit"
+                >
+                  {isCopying ? "Copying..." : "Copy decklist"}
                 </button>
               </div>
             </form>

@@ -3,6 +3,7 @@ import { DeckCardsCollection, DecksCollection, ThemedDeckCardsCollection } from 
 import {
   __resetCardImageResolverForTests,
   __setCardImageResolverForTests,
+  copyDeck,
   createDeck,
   startDeckThemingMethod,
 } from "/imports/api/decks/methods";
@@ -234,5 +235,127 @@ describe("createDeck", function () {
     assert.ok(unresolvedCard);
     assert.strictEqual(unresolvedCard?.imageUrl, null);
     assert.strictEqual(unresolvedCard?.scryfallId, null);
+  });
+
+  it("copies only base deck cards and resets theming state", async function () {
+    const now = new Date();
+    const sourceDeckId = await DecksCollection.insertAsync({
+      title: "Source Deck",
+      themingStatus: "completed",
+      themingThemeUniverse: "Dune",
+      themingArtStyleBrief: "Painterly",
+      themingStartedAt: now,
+      themingCompletedAt: now,
+      themingError: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await DeckCardsCollection.insertAsync({
+      deckId: sourceDeckId,
+      name: "Arcane Signet",
+      quantity: 2,
+      imageUrl: "https://img/arcane-signet",
+      imageSource: "scryfall",
+      scryfallId: "arcane-signet-id",
+      createdAt: now,
+    });
+    await DeckCardsCollection.insertAsync({
+      deckId: sourceDeckId,
+      name: "Sol Ring",
+      quantity: 1,
+      imageUrl: "https://img/sol-ring",
+      imageSource: "scryfall",
+      scryfallId: "sol-ring-id",
+      createdAt: now,
+    });
+
+    await ThemedDeckCardsCollection.insertAsync({
+      deckId: sourceDeckId,
+      originalCardName: "Arcane Signet",
+      quantity: 2,
+      isBasicLand: false,
+      status: "generated",
+      themedName: "Guild Beacon",
+      themedFlavorText: "Flavor",
+      themedConcept: "Concept",
+      themedImagePrompt: "Prompt",
+      constraintsApplied: [],
+      errorMessage: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const result = await copyDeck({
+      sourceDeckId,
+      title: "Copied Deck",
+    });
+
+    assert.ok(result.deckId);
+    assert.strictEqual(result.cardCount, 3);
+    assert.notStrictEqual(result.deckId, sourceDeckId);
+
+    const copiedDeck = await DecksCollection.findOneAsync({ _id: result.deckId });
+    assert.ok(copiedDeck);
+    assert.strictEqual(copiedDeck?.title, "Copied Deck");
+    assert.strictEqual(copiedDeck?.themingStatus, "idle");
+    assert.strictEqual(copiedDeck?.themingThemeUniverse, null);
+    assert.strictEqual(copiedDeck?.themingArtStyleBrief, null);
+    assert.strictEqual(copiedDeck?.themingStartedAt, null);
+    assert.strictEqual(copiedDeck?.themingCompletedAt, null);
+    assert.strictEqual(copiedDeck?.themingError, null);
+
+    const copiedCards = await DeckCardsCollection.find({ deckId: result.deckId }).fetch();
+    assert.deepStrictEqual(
+      copiedCards
+        .map((card) => ({
+          name: card.name,
+          quantity: card.quantity,
+          imageSource: card.imageSource,
+          scryfallId: card.scryfallId,
+          imageUrl: card.imageUrl,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+      [
+        {
+          name: "Arcane Signet",
+          quantity: 2,
+          imageSource: "scryfall",
+          scryfallId: "arcane-signet-id",
+          imageUrl: "https://img/arcane-signet",
+        },
+        {
+          name: "Sol Ring",
+          quantity: 1,
+          imageSource: "scryfall",
+          scryfallId: "sol-ring-id",
+          imageUrl: "https://img/sol-ring",
+        },
+      ],
+    );
+
+    const copiedThemedCards = await ThemedDeckCardsCollection.find({ deckId: result.deckId }).fetch();
+    assert.deepStrictEqual(copiedThemedCards, []);
+  });
+
+  it("rejects copy for missing source deck id", async function () {
+    await assert.rejects(
+      copyDeck({ sourceDeckId: "", title: "Copied Deck" }),
+      (error: unknown) => error instanceof Error,
+    );
+  });
+
+  it("rejects copy for blank title", async function () {
+    await assert.rejects(
+      copyDeck({ sourceDeckId: "abc123", title: "   " }),
+      (error: unknown) => error instanceof Error,
+    );
+  });
+
+  it("rejects copy when source deck is not found", async function () {
+    await assert.rejects(
+      copyDeck({ sourceDeckId: "missing-deck-id", title: "Copied Deck" }),
+      (error: unknown) => error instanceof Error,
+    );
   });
 });

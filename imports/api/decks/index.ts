@@ -1,5 +1,7 @@
 export type {
   DeckCardDoc,
+  DeckCopyInput,
+  DeckCopyResult,
   DeckCreateInput,
   DeckCreateResult,
   DeckDoc,
@@ -16,6 +18,7 @@ export type {
 export { DeckCardsCollection, DecksCollection, ThemedDeckCardsCollection } from "./collections";
 
 export const DeckMethodNames = {
+  copy: "decks.copy",
   create: "decks.create",
   startTheming: "decks.startTheming",
 } as const;

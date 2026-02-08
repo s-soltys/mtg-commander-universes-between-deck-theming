@@ -35,6 +35,16 @@ export interface DeckCreateResult {
   unresolvedCardNames: string[];
 }
 
+export interface DeckCopyInput {
+  sourceDeckId: string;
+  title: string;
+}
+
+export interface DeckCopyResult {
+  deckId: string;
+  cardCount: number;
+}
+
 export interface DeckThemeStartInput {
   deckId: string;
   themeUniverse: string;

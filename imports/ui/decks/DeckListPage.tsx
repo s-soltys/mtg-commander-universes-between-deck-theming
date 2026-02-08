@@ -32,7 +32,7 @@ export const DeckListPage = () => {
   if (decks.length === 0) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600 shadow-sm md:p-6">
-        No decks yet. <a className="font-medium text-red-700 hover:text-red-600" href="/">Create your first deck.</a>
+        No decks yet. <a className="font-medium text-red-700 hover:text-red-600" href="/create">Create your first deck.</a>
       </div>
     );
   }
@@ -43,7 +43,7 @@ export const DeckListPage = () => {
       <ul className="space-y-2">
         {decks.map((deck) => {
           const deckId = deck._id;
-          const deckHref = deckId ? `/?deck=${deckId}` : "/";
+          const deckHref = deckId ? `/decks/${encodeURIComponent(deckId)}` : "/";
 
           return (
             <li className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" key={deckId ?? deck.title}>

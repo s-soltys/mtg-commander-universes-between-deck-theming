@@ -39,6 +39,16 @@
 - Theming prompts and schemas must live in dedicated maintainable modules with tests.
 - Re-theming must require explicit user confirmation and must discard prior themed results before generating new ones.
 
+## Navigation IA Rules
+- Keep deck list as the default landing page at `/`.
+- Keep deck creation on a dedicated `/create` route.
+- Keep deck details pages focused on deck-specific actions; do not show the create deck form on deck details pages.
+
+## Deck Copy Rules
+- Deck copy must duplicate only base decklist and card records.
+- Deck copy must require a new title for the copied deck.
+- Copied decks must reset theming state and must not inherit generated themed card results.
+
 ## Rule Maintenance
 - Treat user direction changes and new perspectives as rule-update triggers.
 - When the user provides a new direction or an interesting perspective, propose a concrete refinement to `AGENTS.md` (and any related rules file) in the same thread.

@@ -4,37 +4,41 @@ import { DeckCreateForm } from "./decks/DeckCreateForm";
 import { DeckListPage } from "./decks/DeckListPage";
 import { DeckView } from "./decks/DeckView";
 
-type AppRoute = "home" | "decks";
+type AppPage =
+  | { kind: "list" }
+  | { kind: "create" }
+  | { kind: "details"; deckId: string };
 
-const getRouteFromUrl = (): AppRoute => (window.location.pathname === "/decks" ? "decks" : "home");
+const getPageFromUrl = (): AppPage => {
+  const pathname = window.location.pathname;
 
-const getDeckIdFromUrl = (): string | null => {
-  const params = new URLSearchParams(window.location.search);
-  const deckId = params.get("deck");
-  return deckId && deckId.trim().length > 0 ? deckId.trim() : null;
-};
+  if (pathname === "/create") {
+    return { kind: "create" };
+  }
 
-const setDeckIdInUrl = (deckId: string): void => {
-  const url = new URL(window.location.href);
-  url.searchParams.set("deck", deckId);
-  window.history.pushState({}, "", url);
-};
+  const match = pathname.match(/^\/decks\/([^/]+)$/);
+  if (match) {
+    const deckId = decodeURIComponent(match[1]).trim();
+    if (deckId.length > 0) {
+      return { kind: "details", deckId };
+    }
+  }
 
-const getShareUrl = (deckId: string): string => {
-  const url = new URL(window.location.href);
-  url.searchParams.set("deck", deckId);
-  return url.toString();
+  return { kind: "list" };
 };
 
 export const App = () => {
-  const [route, setRoute] = React.useState<AppRoute>(() => getRouteFromUrl());
-  const [deckId, setDeckId] = React.useState<string | null>(() => getDeckIdFromUrl());
+  const [page, setPage] = React.useState<AppPage>(() => getPageFromUrl());
   const [lastCreateResult, setLastCreateResult] = React.useState<DeckCreateResult | null>(null);
+
+  const navigateToPath = React.useCallback((path: string): void => {
+    window.history.pushState({}, "", path);
+    setPage(getPageFromUrl());
+  }, []);
 
   React.useEffect(() => {
     const onPopState = () => {
-      setRoute(getRouteFromUrl());
-      setDeckId(getDeckIdFromUrl());
+      setPage(getPageFromUrl());
     };
 
     window.addEventListener("popstate", onPopState);
@@ -43,8 +47,7 @@ export const App = () => {
 
   const handleDeckCreated = (result: DeckCreateResult): void => {
     setLastCreateResult(result);
-    setDeckId(result.deckId);
-    setDeckIdInUrl(result.deckId);
+    navigateToPath(`/decks/${encodeURIComponent(result.deckId)}`);
   };
 
   return (
@@ -55,45 +58,38 @@ export const App = () => {
           <p className="mt-1 text-sm text-slate-600">Create, store, and share MTG Commander deck lists with card images.</p>
           <nav className="mt-3 flex flex-wrap gap-4 text-sm font-medium">
             <a
-              className={route === "home" ? "text-red-700" : "text-slate-700 hover:text-red-700"}
+              className={page.kind === "list" ? "text-red-700" : "text-slate-700 hover:text-red-700"}
               href="/"
-              onClick={() => setRoute("home")}
-            >
-              Create Deck
-            </a>
-            <a
-              className={route === "decks" ? "text-red-700" : "text-slate-700 hover:text-red-700"}
-              href="/decks"
-              onClick={() => setRoute("decks")}
+              onClick={(event) => {
+                event.preventDefault();
+                navigateToPath("/");
+              }}
             >
               Deck List
+            </a>
+            <a
+              className={page.kind === "create" ? "text-red-700" : "text-slate-700 hover:text-red-700"}
+              href="/create"
+              onClick={(event) => {
+                event.preventDefault();
+                navigateToPath("/create");
+              }}
+            >
+              Create Deck
             </a>
           </nav>
         </header>
 
-        {route === "decks" ? <DeckListPage /> : null}
+        {page.kind === "list" ? <DeckListPage /> : null}
 
-        {route === "home" ? (
-          <>
-            <DeckCreateForm onCreated={handleDeckCreated} />
+        {page.kind === "create" ? <DeckCreateForm onCreated={handleDeckCreated} /> : null}
 
-            {deckId ? (
-              <section className="space-y-3">
-                <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
-                  <p className="font-medium text-slate-900">Share URL</p>
-                  <p className="mt-1 break-all">{getShareUrl(deckId)}</p>
-                </div>
-                <DeckView
-                  deckId={deckId}
-                  unresolvedCardNames={
-                    lastCreateResult?.deckId === deckId ? lastCreateResult.unresolvedCardNames : []
-                  }
-                />
-              </section>
-            ) : (
-              <p className="text-sm text-slate-500">Create a deck to get a shareable URL.</p>
-            )}
-          </>
+        {page.kind === "details" ? (
+          <DeckView
+            deckId={page.deckId}
+            onDeckCopied={(copiedDeckId) => navigateToPath(`/decks/${encodeURIComponent(copiedDeckId)}`)}
+            unresolvedCardNames={lastCreateResult?.deckId === page.deckId ? lastCreateResult.unresolvedCardNames : []}
+          />
         ) : null}
       </main>
     </div>
